@@ -1,5 +1,9 @@
 # code-review-claude
 
+<p align="center">
+  <img src="assets/banner.svg" alt="CODE REVIEW - Senior-Engineer Code Review for Claude Code" width="900"/>
+</p>
+
 Senior-engineer-level code review for [Claude Code](https://docs.anthropic.com/en/docs/claude-code).
 
 Reads your codebase, generates severity-scored findings across 9 categories -- security, SOLID principles, architecture, error handling, performance, test quality, code smells, design patterns, and framework best practices -- each with a copy-pasteable fix prompt you can run directly in Claude Code. **Strictly read-only: never modifies your code.**
