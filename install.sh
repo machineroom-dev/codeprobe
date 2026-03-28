@@ -15,14 +15,15 @@ for skill_dir in "$SCRIPT_DIR"/skills/*/; do
     target="$SKILLS_DIR/$skill_name"
 
     if [ -e "$target" ]; then
-        echo "⚠️  $target already exists. Overwrite? (y/N)"
-        read -r response
-        if [[ "$response" =~ ^[Yy]$ ]]; then
-            rm -rf "$target"
-        else
-            echo "Skipping $skill_name"
-            continue
+        if [ -t 0 ]; then
+            echo "⚠️  $target already exists. Overwrite? (y/N)"
+            read -r response
+            if [[ ! "$response" =~ ^[Yy]$ ]]; then
+                echo "Skipping $skill_name"
+                continue
+            fi
         fi
+        rm -rf "$target"
     fi
 
     ln -s "$skill_dir" "$target"

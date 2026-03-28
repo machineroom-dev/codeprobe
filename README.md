@@ -6,11 +6,40 @@ Reads your codebase, generates severity-scored findings across 9 categories -- s
 
 ## Quick Start
 
+### One-Command Install (macOS/Linux)
+
 ```bash
-git clone https://github.com/nishil/code-review-claude.git
+curl -fsSL https://raw.githubusercontent.com/nishilbhave/code-review-claude/main/install.sh | bash
+```
+
+### Manual Install
+
+```bash
+git clone https://github.com/nishilbhave/code-review-claude.git
 cd code-review-claude
 ./install.sh
 ```
+
+### Windows (Git Bash)
+
+Requires [Git for Windows](https://gitforwindows.org/) which includes Git Bash.
+
+```bash
+# Option 1: One-command install (run from Git Bash, not PowerShell/CMD)
+curl -fsSL https://raw.githubusercontent.com/nishilbhave/code-review-claude/main/install-win.sh | bash
+
+# Option 2: Manual install
+git clone https://github.com/nishilbhave/code-review-claude.git
+cd code-review-claude
+./install-win.sh
+```
+
+> **Note:** Right-click the folder and select "Open Git Bash here", or open Git Bash and navigate to the directory. Do not use PowerShell or Command Prompt.
+
+### Requirements
+
+- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) CLI
+- Python 3.8+ (optional -- enables `/review health` statistics)
 
 Then in any project:
 
