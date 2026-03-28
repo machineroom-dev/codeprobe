@@ -2,7 +2,7 @@
 
 Senior-engineer-level code review for [Claude Code](https://docs.anthropic.com/en/docs/claude-code).
 
-Reads your codebase, generates severity-scored findings across security, SOLID principles, architecture, and code smells -- each with a copy-pasteable fix prompt you can run directly in Claude Code. **Strictly read-only: never modifies your code.**
+Reads your codebase, generates severity-scored findings across 9 categories -- security, SOLID principles, architecture, error handling, performance, test quality, code smells, design patterns, and framework best practices -- each with a copy-pasteable fix prompt you can run directly in Claude Code. **Strictly read-only: never modifies your code.**
 
 ## Quick Start
 
@@ -22,18 +22,18 @@ Then in any project:
 
 | Command | Description | Status |
 |---------|-------------|--------|
-| `/review audit <path>` | Full audit -- all categories, detailed findings, refactoring roadmap | Phase 1 |
-| `/review solid <path>` | SOLID principles analysis | Phase 1 |
-| `/review security <path>` | Security vulnerability detection | Phase 1 |
-| `/review smells <path>` | Code smell detection | Phase 1 |
-| `/review architecture <path>` | Architecture and dependency analysis | Phase 1 |
-| `/review quick <path>` | Top 5 most impactful issues with fix prompts | Phase 1 |
-| `/review health <path>` | Codebase vitals dashboard -- scores + file statistics | Phase 1 |
-| `/review patterns <path>` | Design patterns analysis | Phase 2 |
-| `/review performance <path>` | Performance audit | Phase 2 |
-| `/review errors <path>` | Error handling audit | Phase 2 |
-| `/review tests <path>` | Test quality audit | Phase 2 |
-| `/review framework <path>` | Framework best practices | Phase 2 |
+| `/review audit <path>` | Full audit -- all 9 categories, detailed findings, refactoring roadmap | Available |
+| `/review solid <path>` | SOLID principles analysis | Available |
+| `/review security <path>` | Security vulnerability detection | Available |
+| `/review smells <path>` | Code smell detection | Available |
+| `/review architecture <path>` | Architecture and dependency analysis | Available |
+| `/review patterns <path>` | Design patterns analysis | Available |
+| `/review performance <path>` | Performance audit | Available |
+| `/review errors <path>` | Error handling audit | Available |
+| `/review tests <path>` | Test quality audit | Available |
+| `/review framework <path>` | Framework best practices | Available |
+| `/review quick <path>` | Top 5 most impactful issues with fix prompts | Available |
+| `/review health <path>` | Codebase vitals dashboard -- scores + file statistics | Available |
 | `/review diff [branch]` | PR-style review of changed files | Phase 3 |
 | `/review report` | Generate report from last audit | Phase 3 |
 
@@ -46,11 +46,20 @@ The system uses an **orchestrator + sub-skill** architecture:
 1. **Orchestrator** (`skills/review/SKILL.md`) -- Routes commands, detects your tech stack, loads config, and invokes specialized sub-skills.
 2. **Sub-skills** -- Domain experts that each analyze one category:
    - `review-security` -- SQL injection, XSS, hardcoded secrets, auth issues
+   - `review-error-handling` -- Swallowed exceptions, missing try/catch, transaction safety
    - `review-solid` -- Single Responsibility, Open/Closed, Liskov, Interface Segregation, Dependency Inversion
    - `review-architecture` -- Coupling, layering violations, circular dependencies, god objects
+   - `review-patterns` -- Design pattern opportunities and anti-patterns
+   - `review-performance` -- N+1 queries, unbounded queries, algorithmic efficiency, caching
    - `review-code-smells` -- Long methods, deep nesting, duplicate code, primitive obsession
+   - `review-testing` -- Missing tests, test smells, mock abuse, coverage gaps
+   - `review-framework` -- Laravel, React/Next.js, Python/Django framework idiom violations
 3. **Reference guides** (`skills/review/references/`) -- Stack-specific best practices loaded based on auto-detected languages.
-4. **Statistics script** (`skills/review/scripts/file_stats.py`) -- Deterministic codebase analysis (LOC, file counts, method counts) used by `/review health`.
+4. **Scripts** (`skills/review/scripts/`) -- Deterministic analysis utilities:
+   - `file_stats.py` -- LOC, file counts, method counts per file
+   - `complexity_scorer.py` -- Cyclomatic complexity per function
+   - `dependency_mapper.py` -- Import graph and circular dependency detection
+   - `generate_report.py` -- Markdown report generation from audit findings
 
 Stack detection is automatic. The orchestrator scans for file extensions and project markers (e.g., `next.config.*`, `migrations/` directory) and loads the appropriate reference guides.
 
@@ -107,19 +116,19 @@ category_score = max(0, 100 - (critical * 25) - (major * 10) - (minor * 3))
 
 Suggestions do not affect scores. The overall score is a weighted average of active categories:
 
-| Category | Weight | Phase |
-|----------|--------|-------|
-| Security | 20% | 1 |
-| SOLID | 15% | 1 |
-| Architecture | 15% | 1 |
-| Error Handling | 12% | 2 |
-| Performance | 12% | 2 |
-| Test Quality | 10% | 2 |
-| Code Smells | 8% | 1 |
-| Design Patterns | 4% | 2 |
-| Framework | 4% | 2 |
+| Category | Weight |
+|----------|--------|
+| Security | 20% |
+| SOLID | 15% |
+| Architecture | 15% |
+| Error Handling | 12% |
+| Performance | 12% |
+| Test Quality | 10% |
+| Code Smells | 8% |
+| Design Patterns | 4% |
+| Framework | 4% |
 
-In Phase 1, only active category weights are used (normalized to 100%).
+All 9 categories are active. If `skip_categories` is set in config, weights are normalized to 100%.
 
 | Score Range | Status |
 |-------------|--------|
@@ -146,9 +155,9 @@ When used on Claude.ai (without filesystem access), the skill runs in **degraded
 
 ## Phase Roadmap
 
-**Phase 1 (current):** Core review engine with 4 sub-skills (security, SOLID, architecture, code smells), orchestrator routing, scoring, templates, and file statistics.
+**Phase 1 (complete):** Core review engine with 4 sub-skills (security, SOLID, architecture, code smells), orchestrator routing, scoring, templates, and file statistics.
 
-**Phase 2:** 5 additional sub-skills -- error handling, performance, test quality, design patterns, framework best practices.
+**Phase 2 (current):** 5 additional sub-skills (error handling, performance, test quality, design patterns, framework best practices), 3 additional scripts (complexity scorer, dependency mapper, report generator), and PR review template.
 
 **Phase 3:** Parallel agent execution, PDF report generation, CI integration, and diff-based reviews.
 

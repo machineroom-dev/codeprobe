@@ -8,7 +8,7 @@ description: >
   Use when user says "review", "audit", "code review", "check my code",
   "security scan", "code smells", "SOLID check".
 user-invokable: true
-argument-hint: "[audit|solid|security|smells|architecture|quick|health] <path>"
+argument-hint: "[audit|solid|security|smells|architecture|patterns|performance|errors|tests|framework|quick|health] <path>"
 allowed-tools:
   - Read
   - Grep
@@ -18,7 +18,7 @@ allowed-tools:
   - Task
 metadata:
   author: Nishil
-  version: "1.0.0"
+  version: "2.0.0"
 ---
 
 # Code Review Orchestrator
@@ -46,11 +46,11 @@ Parse the user's input to extract a subcommand and target path. The input format
 | `/review security <path>` | Security audit only | `review-security` |
 | `/review smells <path>` | Code smells detection only | `review-code-smells` |
 | `/review architecture <path>` | Architecture analysis only | `review-architecture` |
-| `/review patterns <path>` | Design patterns analysis only | `review-patterns` (Phase 2) |
-| `/review performance <path>` | Performance audit only | `review-performance` (Phase 2) |
-| `/review errors <path>` | Error handling audit only | `review-error-handling` (Phase 2) |
-| `/review tests <path>` | Test quality audit only | `review-testing` (Phase 2) |
-| `/review framework <path>` | Framework best practices only | `review-framework` (Phase 2) |
+| `/review patterns <path>` | Design patterns analysis only | `review-patterns` |
+| `/review performance <path>` | Performance audit only | `review-performance` |
+| `/review errors <path>` | Error handling audit only | `review-error-handling` |
+| `/review tests <path>` | Test quality audit only | `review-testing` |
+| `/review framework <path>` | Framework best practices only | `review-framework` |
 | `/review quick <path>` | Top 5 issues — run all sub-skills in scan mode, then generate full detail for top 5 | All available |
 | `/review health <path>` | Codebase vitals dashboard — scores + stats, no individual findings | All available + `file_stats.py` |
 | `/review diff [branch]` | PR-style review on changed files vs branch (default: `main`) | All relevant (Phase 3) |
@@ -60,7 +60,7 @@ Parse the user's input to extract a subcommand and target path. The input format
 
 - **No subcommand given**: Ask the user what they want. Present the available commands.
 - **No path given**: Use the current working directory.
-- **Phase 2/3 stubs**: If the user invokes `patterns`, `performance`, `errors`, `tests`, `framework`, `diff`, or `report`, respond: "This sub-skill is coming in Phase 2/3. Available now: audit, solid, security, smells, architecture, quick, health."
+- **Phase 3 stubs**: If the user invokes `diff` or `report`, respond: "This feature is coming in Phase 3. Available now: audit, solid, security, smells, architecture, patterns, performance, errors, tests, framework, quick, health."
 
 ---
 
@@ -156,18 +156,21 @@ For each sub-skill to run:
 
 ### Execution Order
 
-- **`/review audit`**: Run sub-skills sequentially in this order: `review-security`, `review-solid`, `review-architecture`, `review-code-smells`. Collect all findings.
-- **`/review quick`**: Run all sub-skills in `scan` mode. Collect candidate issues from all. Rank by severity (critical > major > minor > suggestion), then select top 5. Re-run relevant sub-skills in `full` mode for just those 5 findings to get complete detail.
-- **`/review health`**: Run all sub-skills in `score-only` mode. Also run `file_stats.py` if Python 3 is available. Render the health dashboard.
+- **`/review audit`**: Run sub-skills sequentially in this order: `review-security`, `review-error-handling`, `review-solid`, `review-architecture`, `review-patterns`, `review-performance`, `review-code-smells`, `review-testing`, `review-framework`. Collect all findings.
+- **`/review quick`**: Run all 9 sub-skills in `scan` mode. Collect candidate issues from all. Rank by severity (critical > major > minor > suggestion), then select top 5. Re-run relevant sub-skills in `full` mode for just those 5 findings to get complete detail.
+- **`/review health`**: Run all 9 sub-skills in `score-only` mode. Also run `file_stats.py` if Python 3 is available. Render the health dashboard.
 
-### Phase 1 Available Sub-Skills
+### Available Sub-Skills
 
-1. `review-solid` — SOLID principles analysis
-2. `review-security` — Security vulnerability detection
-3. `review-code-smells` — Code smell detection
+1. `review-security` — Security vulnerability detection
+2. `review-error-handling` — Error handling & resilience
+3. `review-solid` — SOLID principles analysis
 4. `review-architecture` — Architecture analysis
-
-Sub-skills for Phase 2 (`review-patterns`, `review-performance`, `review-error-handling`, `review-testing`, `review-framework`) are not yet available.
+5. `review-patterns` — Design patterns advisor
+6. `review-performance` — Performance & scalability
+7. `review-code-smells` — Code smell detection
+8. `review-testing` — Test quality & coverage
+9. `review-framework` — Framework-specific best practices
 
 ---
 
@@ -231,23 +234,27 @@ Suggestions do not affect the score.
 
 ### Category Weights
 
-| Category | Weight | Phase |
-|----------|--------|-------|
-| Security | 20% | 1 |
-| SOLID | 15% | 1 |
-| Architecture | 15% | 1 |
-| Error Handling | 12% | 2 |
-| Performance | 12% | 2 |
-| Test Quality | 10% | 2 |
-| Code Smells | 8% | 1 |
-| Design Patterns | 4% | 2 |
-| Framework | 4% | 2 |
+| Category | Weight |
+|----------|--------|
+| Security | 20% |
+| SOLID | 15% |
+| Architecture | 15% |
+| Error Handling | 12% |
+| Performance | 12% |
+| Test Quality | 10% |
+| Code Smells | 8% |
+| Design Patterns | 4% |
+| Framework | 4% |
 
-### Normalization for Active Categories
+All 9 categories are active. Weights sum to 100%.
 
-In Phase 1 only 4 categories are active (Security 20%, SOLID 15%, Architecture 15%, Code Smells 8%). Their weights sum to 58%.
+### Overall Score
 
-Normalize the overall score:
+```
+overall = sum(category_score_i * weight_i for each active category)
+```
+
+If `skip_categories` in `.review-config.json` excludes some categories, normalize by dividing by the sum of active weights:
 
 ```
 overall = sum(category_score_i * weight_i for each active category) / sum(weight_i for each active category)
@@ -301,7 +308,12 @@ Category Scores:
   Security        {bar}  {score}/100  {status}
   SOLID           {bar}  {score}/100  {status}
   Architecture    {bar}  {score}/100  {status}
+  Error Handling  {bar}  {score}/100  {status}
+  Performance     {bar}  {score}/100  {status}
+  Test Quality    {bar}  {score}/100  {status}
   Code Smells     {bar}  {score}/100  {status}
+  Design Patterns {bar}  {score}/100  {status}
+  Framework       {bar}  {score}/100  {status}
 
 Codebase Stats: (from file_stats.py)
   Files: {n}  |  Total LOC: {n}
@@ -343,21 +355,26 @@ Detect whether filesystem access is available. If the user has pasted or uploade
 
 ---
 
-## 10. Phase 2/3 Stubs
+## 10. Phase 3 Stubs
 
-When the user invokes a command that routes to an unbuilt sub-skill or feature, respond with:
+When the user invokes a command that routes to an unbuilt feature, respond with:
 
-> **Not yet available.** This sub-skill is coming in Phase 2/3. Currently available commands:
+> **Not yet available.** This feature is coming in Phase 3. Currently available commands:
 >
 > - `/review audit <path>` — Full code audit
 > - `/review solid <path>` — SOLID principles check
 > - `/review security <path>` — Security audit
 > - `/review smells <path>` — Code smells detection
 > - `/review architecture <path>` — Architecture analysis
+> - `/review patterns <path>` — Design patterns analysis
+> - `/review performance <path>` — Performance audit
+> - `/review errors <path>` — Error handling audit
+> - `/review tests <path>` — Test quality audit
+> - `/review framework <path>` — Framework best practices
 > - `/review quick <path>` — Top 5 issues
 > - `/review health <path>` — Codebase vitals dashboard
 
-This applies to: `patterns`, `performance`, `errors`, `tests`, `framework`, `diff`, `report`.
+This applies to: `diff`, `report`.
 
 ---
 
@@ -366,7 +383,7 @@ This applies to: `patterns`, `performance`, `errors`, `tests`, `framework`, `dif
 When `/review` is invoked, execute this sequence:
 
 1. **Parse command**: Extract subcommand and target path from user input.
-2. **Validate command**: Check routing table. If Phase 2/3 stub, respond with stub message.
+2. **Validate command**: Check routing table. If Phase 3 stub, respond with stub message.
 3. **Resolve target path**: Use provided path or default to current working directory.
 4. **Load config**: Check for `.review-config.json` at project root. Apply defaults if absent.
 5. **Auto-detect stack**: Scan target path for technology signals. Load matching references.
