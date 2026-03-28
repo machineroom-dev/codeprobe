@@ -1,8 +1,20 @@
 #!/bin/bash
 set -e
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SKILLS_DIR="$HOME/.claude/skills"
+
+# Detect if running via curl pipe (no script file on disk)
+if [ -t 0 ] || [ -f "$0" ]; then
+    # Running directly -- use script's directory
+    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+else
+    # Running via curl | bash -- clone to temp dir
+    TMPDIR=$(mktemp -d)
+    echo "Cloning code-review-claude..."
+    git clone --quiet https://github.com/nishilbhave/code-review-claude.git "$TMPDIR/code-review-claude"
+    SCRIPT_DIR="$TMPDIR/code-review-claude"
+    trap "rm -rf '$TMPDIR'" EXIT
+fi
 
 echo "Installing code-review-claude..."
 
