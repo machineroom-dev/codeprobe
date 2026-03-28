@@ -75,9 +75,9 @@ Before routing to any sub-skill, detect the technology stack at the target path.
 
 | Signal | Stack Detected | Reference to Load |
 |--------|---------------|-------------------|
-| `.php` files + `artisan` or `composer.json` present | PHP / Laravel | `references/php-laravel.md` |
+| `.php` files | PHP / Laravel | `references/php-laravel.md` |
 | `.js`, `.ts`, `.jsx`, `.tsx` files | JavaScript / TypeScript | `references/javascript-typescript.md` |
-| `.py` files + imports from `django`, `fastapi`, `flask` | Python (web) | `references/python.md` |
+| `.py` files | Python | `references/python.md` |
 | `.jsx`, `.tsx` files + `next.config.*` present | React / Next.js | `references/react-nextjs.md` |
 | `.sql` files or `migrations/` directory | SQL / Database | `references/sql-database.md` |
 | `routes/` directory or API route patterns | API Design | `references/api-design.md` |
@@ -209,10 +209,10 @@ Every finding from every sub-skill MUST include these fields:
 
 | Level | Label | Emoji | Meaning |
 |-------|-------|-------|---------|
-| Critical | Critical | :red_circle: | Bugs, security holes, data loss risks in production |
-| Major | Major | :orange_circle: | Significant maintainability or scalability problem |
-| Minor | Minor | :yellow_circle: | Code smell, low risk, worth addressing |
-| Suggestion | Suggestion | :blue_circle: | Improvement idea, nice to have |
+| Critical | Critical | 🔴 | Bugs, security holes, data loss risks in production |
+| Major | Major | 🟠 | Significant maintainability or scalability problem |
+| Minor | Minor | 🟡 | Code smell, low risk, worth addressing |
+| Suggestion | Suggestion | 🔵 | Improvement idea, nice to have |
 
 ---
 
