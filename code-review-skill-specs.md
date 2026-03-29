@@ -595,8 +595,11 @@ Security weighted highest because vulnerabilities have outsized production impac
 
 Scoring formula per category:
 ```
-category_score = 100 - (critical * 25) - (major * 10) - (minor * 3) - (suggestion * 0)
-overall_score = Σ (category_score * weight)
+crit_penalty  = min(50, critical_count * 15)
+major_penalty = min(30, major_count * 6)
+minor_penalty = min(10, minor_count * 2)
+category_score = max(0, 100 - crit_penalty - major_penalty - minor_penalty)
+overall_score = sum(category_score * weight)
 ```
 
 Clamped to [0, 100].

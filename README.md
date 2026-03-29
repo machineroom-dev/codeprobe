@@ -144,7 +144,11 @@ All fields are optional. If the file is absent, defaults apply.
 Each category is scored independently:
 
 ```
-category_score = max(0, 100 - (critical * 25) - (major * 10) - (minor * 3))
+crit_penalty  = min(50, critical_count * 15)
+major_penalty = min(30, major_count * 6)
+minor_penalty = min(10, minor_count * 2)
+
+category_score = max(0, 100 - crit_penalty - major_penalty - minor_penalty)
 ```
 
 Suggestions do not affect scores. The overall score is a weighted average of active categories:

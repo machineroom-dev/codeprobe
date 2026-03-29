@@ -152,13 +152,13 @@ For each sub-skill to run:
 |------|---------|----------|
 | `full` | `/codeprobe audit`, `/codeprobe solid`, etc. | Run complete analysis, return all findings |
 | `scan` | `/codeprobe quick` | Count violations, identify top issues, return only counts + top 5 candidates |
-| `score-only` | `/codeprobe health` | Return only category score, no individual findings |
+| `score-only` | `/codeprobe health` | Run full-depth analysis (same thoroughness as `full` mode) but return only category severity counts — no individual findings, no evidence, no fix prompts in the output |
 
 ### Execution Order
 
 - **`/codeprobe audit`**: Run sub-skills sequentially in this order: `codeprobe-security`, `codeprobe-error-handling`, `codeprobe-solid`, `codeprobe-architecture`, `codeprobe-patterns`, `codeprobe-performance`, `codeprobe-code-smells`, `codeprobe-testing`, `codeprobe-framework`. Collect all findings.
 - **`/codeprobe quick`**: Run all 9 sub-skills in `scan` mode. Collect candidate issues from all. Rank by severity (critical > major > minor > suggestion), then select top 5. Re-run relevant sub-skills in `full` mode for just those 5 findings to get complete detail.
-- **`/codeprobe health`**: Run all 9 sub-skills in `score-only` mode. Also run `file_stats.py` if Python 3 is available. Render the health dashboard.
+- **`/codeprobe health`**: Run all 9 sub-skills in `score-only` mode (which uses full-depth analysis internally, suppressing only the output detail). Apply deduplication (Section 7A). Also run `file_stats.py` if Python 3 is available. Render the health dashboard.
 
 ### Available Sub-Skills
 
@@ -211,12 +211,29 @@ Every finding from every sub-skill MUST include these fields:
 
 ## 6. Severity Levels
 
-| Level | Label | Emoji | Meaning |
-|-------|-------|-------|---------|
-| Critical | Critical | 🔴 | Bugs, security holes, data loss risks in production |
-| Major | Major | 🟠 | Significant maintainability or scalability problem |
-| Minor | Minor | 🟡 | Code smell, low risk, worth addressing |
-| Suggestion | Suggestion | 🔵 | Improvement idea, nice to have |
+| Level | Emoji | Meaning | Examples |
+|-------|-------|---------|----------|
+| Critical | 🔴 | **Confirmed bugs, exploitable security vulnerabilities, or data loss/corruption risks** that would cause harm in production | SQL injection with user input, missing auth on data-mutating endpoint, race condition causing data corruption, unhandled crash on a core path, missing DB transaction on multi-step writes |
+| Major | 🟠 | Significant maintainability, reliability, or scalability problem that increases risk but is not an immediate production defect | Missing tests for critical business logic, large classes, code duplication, missing error handling on external calls, N+1 queries, missing input validation |
+| Minor | 🟡 | Code smell, low risk, worth addressing for long-term health | Magic numbers, deep nesting, poor naming, missing edge case tests, verbose error details |
+| Suggestion | 🔵 | Improvement idea, nice to have, no real risk if ignored | Pattern opportunities, style improvements, speculative generality |
+
+### Severity Guardrails
+
+**The following are NEVER Critical — classify as Major at most:**
+- Missing tests (even for critical business logic)
+- Code duplication or large classes/files
+- Code smells of any kind
+- Framework convention violations
+- Missing documentation, comments, or type annotations
+
+**Critical is reserved exclusively for:**
+- Confirmed bugs (code that produces wrong results or crashes)
+- Exploitable security vulnerabilities (injection, auth bypass, IDOR with proof)
+- Data loss or corruption risks (missing transactions, race conditions on writes)
+- Sensitive data exposure (secrets in code, credentials in logs)
+
+**Sub-skills: do NOT escalate findings beyond the severity specified in your detection table.** If your table says "Major," report it as Major even if the specific instance seems severe. The orchestrator's scoring formula accounts for finding counts at each level.
 
 ---
 
@@ -226,11 +243,19 @@ After collecting all findings, compute scores per category and an overall score.
 
 ### Category Score Formula
 
+Each penalty component is capped to prevent a single severity level from dominating the score:
+
 ```
-category_score = max(0, 100 - (critical_count * 25) - (major_count * 10) - (minor_count * 3))
+crit_penalty  = min(50, critical_count * 15)
+major_penalty = min(30, major_count * 6)
+minor_penalty = min(10, minor_count * 2)
+
+category_score = max(0, 100 - crit_penalty - major_penalty - minor_penalty)
 ```
 
 Suggestions do not affect the score.
+
+**Rationale:** Diminishing returns prevent a single severity from flooring the score. A category with 4 criticals scores 40 (not 0), reflecting problems exist but the code is not completely broken. The maximum total penalty from all three levels combined is 90, so a score of 0 requires extreme findings across all severities.
 
 ### Category Weights
 
@@ -272,19 +297,54 @@ Clamp the result to the range [0, 100].
 
 ---
 
+## 7A. Cross-Category Deduplication
+
+Before computing scores, deduplicate findings that flag the same issue from multiple categories.
+
+### Deduplication Procedure
+
+1. **Group findings by location.** Normalize each finding's `location` to `{file}:{start_line}`. Two findings overlap if they share the same file AND their line ranges overlap (i.e., start_line_A <= end_line_B AND start_line_B <= end_line_A).
+
+2. **For each group of overlapping findings from different categories:**
+   a. **Select a primary finding.** Use this priority order:
+      - Security findings (SEC) take priority for anything involving auth, injection, or data exposure
+      - Error Handling findings (ERR) take priority for exception/validation issues
+      - Performance findings (PERF) take priority for query/caching issues
+      - SOLID findings (SRP/OCP/LSP/ISP/DIP) take priority for structural violations
+      - Architecture findings (ARCH) take priority for layer/boundary violations
+      - If still ambiguous, the category with the higher weight (Section 7) wins
+   b. **Mark duplicates.** For each non-primary finding in the group, append to its `problem` field: `[Duplicate of {primary_id} — counted there]` and change its severity to `suggestion` so it does not affect the score of its own category.
+   c. **Cross-reference the primary.** Append to the primary finding's `suggestion` field: `Also flagged by: {list of duplicate category:id pairs}`
+
+3. **Recount severity totals per category** after deduplication, then proceed to scoring.
+
+### Examples
+
+- "Refresh bypasses quota" found as SEC-007, ERR-011, FW-001 at same location: keep SEC-007, mark ERR-011 and FW-001 as duplicates (severity → suggestion).
+- "God component" found as SRP-001, SMELL-001, ARCH-005 at same file: keep SRP-001 (SOLID priority for structural), mark others as duplicates.
+- Same SRP violation found as SRP-001 and SMELL-001: keep SRP-001, mark SMELL-001 as duplicate.
+
+---
+
 ## 8. Report Rendering
 
 Render the final output based on the command used.
 
 ### `/codeprobe audit` — Full Audit Report
 
-Use the template at `templates/full-audit-report.md` (loaded via Read). If the template does not exist yet, render the report inline with this structure:
+Use the template at `templates/full-audit-report.md` (loaded via Read). The template uses a **tiered output format** to control token usage:
 
-1. **Header**: Project name, date, overall score, score breakdown by category.
+1. **Header**: Project name, date, overall score, score breakdown by category, deduplication summary.
 2. **Executive Summary**: 2-3 sentences covering the most important findings.
-3. **Findings by Category**: Group findings by sub-skill, sorted by severity (critical first).
-4. **Score Card**: Table of category scores with bar visualization.
-5. **Recommended Fix Order**: List the top findings to address first, ordered by impact.
+3. **Critical findings — Full detail**: Each critical finding rendered with evidence, suggestion, and fix prompt. These are the most important and justify the token cost.
+4. **Major findings — Summary table**: One row per major finding with ID, file, problem, and fix prompt. No evidence block (saves ~200 tokens per finding).
+5. **Minor findings — Counts only**: Aggregated count per category. No individual findings listed.
+6. **Suggestions — Counts only**: Aggregated count per category. No individual findings listed.
+7. **Prioritized Fix Order**: Ordered list of all critical and major fix prompts, ranked by impact.
+
+If the template does not exist, render inline following the same tiered structure.
+
+**Token budget guidance:** For a codebase with ~100 findings, this tiered format targets ~8,000-12,000 tokens for the report (vs ~40,000 with full detail for all findings). The user can drill into specific categories with `/codeprobe security .` etc. for full detail on any category.
 
 ### `/codeprobe quick` — Quick Review Summary
 
@@ -390,8 +450,9 @@ When `/codeprobe` is invoked, execute this sequence:
 6. **Apply config overrides**: If `framework` is set in config, adjust detection. Apply `skip_categories` and `skip_rules`.
 7. **Execute sub-skills**: Route to appropriate sub-skills based on command and mode.
 8. **Collect findings**: Aggregate all findings in the output contract format.
-9. **Compute scores**: Calculate per-category and overall scores using the formulas above.
-10. **Render report**: Format output using the appropriate template or inline format.
-11. **Present to user**: Display the final report.
+9. **Deduplicate findings**: Apply the cross-category deduplication procedure (Section 7A). Adjust severity of duplicates to `suggestion`. Recount severity totals per category.
+10. **Compute scores**: Calculate per-category and overall scores using the post-deduplication severity counts and the formulas in Section 7.
+11. **Render report**: Format output using the appropriate template or inline format. Use the tiered output format for `/codeprobe audit`.
+12. **Present to user**: Display the final report.
 
 **Remember: This entire process is READ-ONLY. At no point do we modify any user files.**

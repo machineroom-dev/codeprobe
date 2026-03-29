@@ -45,6 +45,10 @@ This sub-skill detects test quality and coverage issues across six categories:
 
 ## Detection Instructions
 
+### Severity Ceiling
+
+**No finding from this sub-skill should ever be classified as Critical.** Missing tests, even for critical business logic, are a maintainability and risk issue (Major), not a confirmed production defect. The highest severity this sub-skill may assign is **Major**. Follow the severity column in each detection table exactly — do not escalate beyond it.
+
 ### Missing Tests
 
 | ID Prefix | What to Detect | How to Detect | Severity |
@@ -172,7 +176,7 @@ Quick count of violations by severity. Identify the worst offenders (files/class
 - Top 3 worst-offending files with brief descriptions
 
 ### `score-only` Mode
-Count violations by severity per category. Return only the summary counts — no individual findings, no evidence, no fix prompts. Output the summary object only.
+Analyze the target path with the **same thoroughness and detection depth as `full` mode** — scan all files, apply all detection rules, identify all violations. The difference is output only: return only the summary severity counts, no individual findings, no evidence, no fix prompts. This ensures that health scores match audit scores for the same codebase. Output the summary object only.
 
 ---
 

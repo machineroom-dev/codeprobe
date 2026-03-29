@@ -198,7 +198,7 @@ Quick count of vulnerabilities by severity. Identify the worst offenders (files 
 - Top 3 most vulnerable files with brief descriptions
 
 ### `score-only` Mode
-Count vulnerabilities by severity per category. Return only the summary counts — no individual findings, no evidence, no fix prompts. Output the summary object only.
+Analyze the target path with the **same thoroughness and detection depth as `full` mode** — scan all files, apply all detection rules, identify all violations. The difference is output only: return only the summary severity counts, no individual findings, no evidence, no fix prompts. This ensures that health scores match audit scores for the same codebase. Output the summary object only.
 
 ---
 

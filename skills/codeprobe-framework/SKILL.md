@@ -49,6 +49,7 @@ This sub-skill detects framework-specific anti-patterns and convention violation
   - Performance issues like N+1 queries → covered by `codeprobe-performance` (PERF)
   - Error handling in framework middleware → covered by `codeprobe-error-handling` (ERR)
 - This sub-skill focuses exclusively on **framework idiom violations** — using the framework incorrectly or ignoring its conventions.
+- When this sub-skill and another sub-skill flag the same file:line range, the orchestrator's deduplication step (Section 7A) will keep the finding in whichever category is most relevant and mark the framework finding as a duplicate.
 - **Framework-generated boilerplate files** (migration stubs, config defaults, scaffolded controllers).
 - **Intentional deviations** from framework conventions with clear comments explaining the reason.
 - **Test files** — test-specific framework usage has different conventions.
@@ -173,7 +174,7 @@ Quick count of violations by severity. Identify the worst offenders (files with 
 - Top 3 most problematic files with brief descriptions
 
 ### `score-only` Mode
-Count violations by severity per framework section. Return only the summary counts — no individual findings, no evidence, no fix prompts. Output the summary object only.
+Analyze the target path with the **same thoroughness and detection depth as `full` mode** — scan all files, apply all detection rules, identify all violations. The difference is output only: return only the summary severity counts, no individual findings, no evidence, no fix prompts. This ensures that health scores match audit scores for the same codebase. Output the summary object only.
 
 ---
 

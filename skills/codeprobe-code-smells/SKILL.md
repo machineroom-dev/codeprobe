@@ -40,6 +40,7 @@ This sub-skill detects code smells and anti-patterns organized into these catego
 - **Configuration files** with many entries — A config file with 50 key-value pairs is not a "Large Class" smell.
 - **Data migration files** — These are procedural by nature and often contain long methods.
 - **Third-party code** checked into the repository (e.g., vendored libraries).
+- **Structural issues already flagged by `codeprobe-solid` or `codeprobe-architecture`** — Large classes may also be flagged as SRP violations or god objects. This sub-skill should still detect and report them, but the orchestrator will deduplicate overlapping findings at the same location.
 
 ---
 
@@ -60,7 +61,7 @@ Before analysis, check for a `.codeprobe-config.json` file in the project root. 
 | ID Prefix | Smell | Signal | How to Detect | Default Threshold | Severity |
 |-----------|-------|--------|---------------|-------------------|----------|
 | `SMELL` | Long Method | Function/method exceeds LOC threshold | Count lines in each function/method body (excluding blank lines and single-line comments). Compare against `long_method_loc` threshold. For methods 2x over threshold, escalate to major. | > 30 LOC | Minor |
-| `SMELL` | Large Class | Class exceeds LOC threshold | Count total lines in each class definition. Compare against `large_class_loc` threshold. For classes 2x over threshold, escalate to critical. | > 300 LOC | Major |
+| `SMELL` | Large Class | Class exceeds LOC threshold | Count total lines in each class definition. Compare against `large_class_loc` threshold. For classes 2x over threshold, escalate to major (if not already major). Never escalate to critical — large classes are a maintainability concern, not a production defect. | > 300 LOC | Major |
 | `SMELL` | Data Clumps | Same 3+ params passed together in 3+ places | Search for function/method signatures. Identify groups of 3+ parameters that appear together in 3+ different function signatures or call sites. These should be extracted into a parameter object or value object. | 3+ params, 3+ occurrences | Minor |
 | `SMELL` | Primitive Obsession | String/int used where a value object is warranted | Look for string/integer variables representing domain concepts: email addresses (validated by regex inline), money amounts (numeric + currency passed separately), phone numbers, status strings compared in multiple places, ZIP codes, UUIDs passed as plain strings through multiple layers. | Pattern recognition | Minor |
 
@@ -179,7 +180,7 @@ Quick count of smells by severity. Identify the worst offenders (files/classes w
 - Top 3 smelliest files with brief descriptions
 
 ### `score-only` Mode
-Count smells by severity per category. Return only the summary counts — no individual findings, no evidence, no fix prompts. Output the summary object only.
+Analyze the target path with the **same thoroughness and detection depth as `full` mode** — scan all files, apply all detection rules, identify all violations. The difference is output only: return only the summary severity counts, no individual findings, no evidence, no fix prompts. This ensures that health scores match audit scores for the same codebase. Output the summary object only.
 
 ---
 

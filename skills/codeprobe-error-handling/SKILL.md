@@ -42,6 +42,7 @@ This sub-skill detects error handling and resilience issues across these categor
 - **Framework-generated exception handlers** (e.g., Laravel's `Handler.php`, Next.js error boundaries that are intentionally minimal) — these are scaffolded defaults, not developer oversights.
 - **CLI scripts with intentionally simple error handling** (print + exit) — command-line tools often use a valid pattern of printing an error and exiting with a non-zero code.
 - **Catch blocks that deliberately swallow specific known-harmless exceptions** with a comment explaining why — if the developer documented the rationale, respect the decision.
+- **Issues that are primarily security vulnerabilities** (e.g., authentication bypasses, injection, data exposure) even if they also have error handling implications — these are covered by `codeprobe-security`. If both sub-skills flag the same location, the orchestrator will deduplicate and keep the security finding as primary.
 
 ---
 
@@ -177,7 +178,7 @@ Quick count of issues by severity. Identify the worst offenders (files with the 
 - Top 3 most problematic files with brief descriptions
 
 ### `score-only` Mode
-Count issues by severity per category. Return only the summary counts — no individual findings, no evidence, no fix prompts. Output the summary object only.
+Analyze the target path with the **same thoroughness and detection depth as `full` mode** — scan all files, apply all detection rules, identify all violations. The difference is output only: return only the summary severity counts, no individual findings, no evidence, no fix prompts. This ensures that health scores match audit scores for the same codebase. Output the summary object only.
 
 ---
 
