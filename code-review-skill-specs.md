@@ -41,23 +41,23 @@ code-review-claude/
 │   └── SKILL.md                      # Primary skill — command routing & synthesis
 │
 ├── skills/                           # 9 specialized sub-skills (domain experts)
-│   ├── probe-solid/                 # SOLID principles auditor
+│   ├── codeprobe-solid/             # SOLID principles auditor
 │   │   └── SKILL.md
-│   ├── probe-patterns/              # Design patterns advisor
+│   ├── codeprobe-patterns/          # Design patterns advisor
 │   │   └── SKILL.md
-│   ├── probe-security/              # Security vulnerability scanner
+│   ├── codeprobe-security/          # Security vulnerability scanner
 │   │   └── SKILL.md
-│   ├── probe-performance/           # Performance & scalability auditor
+│   ├── codeprobe-performance/       # Performance & scalability auditor
 │   │   └── SKILL.md
-│   ├── probe-architecture/          # Architecture & structure analyzer
+│   ├── codeprobe-architecture/      # Architecture & structure analyzer
 │   │   └── SKILL.md
-│   ├── probe-error-handling/        # Error handling & resilience checker
+│   ├── codeprobe-error-handling/    # Error handling & resilience checker
 │   │   └── SKILL.md
-│   ├── probe-testing/               # Test quality & coverage auditor
+│   ├── codeprobe-testing/           # Test quality & coverage auditor
 │   │   └── SKILL.md
-│   ├── probe-code-smells/           # Code smells & anti-pattern detector
+│   ├── codeprobe-code-smells/       # Code smells & anti-pattern detector
 │   │   └── SKILL.md
-│   └── probe-framework/             # Framework-specific best practices
+│   └── codeprobe-framework/         # Framework-specific best practices
 │       └── SKILL.md
 │
 ├── agents/                           # Parallel subagents for full audit
@@ -93,7 +93,7 @@ code-review-claude/
 
 ---
 
-## 3. Orchestrator Skill (`probe/SKILL.md`)
+## 3. Orchestrator Skill (`codeprobe/SKILL.md`)
 
 ### Responsibilities
 
@@ -108,20 +108,20 @@ code-review-claude/
 
 | Command | Description | Sub-skills Invoked |
 |---|---|---|
-| `/probe audit <path>` | Full audit — spawns all 4 agents in parallel | All 9 sub-skills via agents |
-| `/probe solid <path>` | SOLID principles check only | `probe-solid` |
-| `/probe security <path>` | Security audit only | `probe-security` |
-| `/probe performance <path>` | Performance audit only | `probe-performance` |
-| `/probe patterns <path>` | Design pattern analysis only | `probe-patterns` |
-| `/probe smells <path>` | Code smells detection only | `probe-code-smells` |
-| `/probe architecture <path>` | Architecture & structure analysis | `probe-architecture` |
-| `/probe errors <path>` | Error handling audit | `probe-error-handling` |
-| `/probe tests <path>` | Test quality assessment | `probe-testing` |
-| `/probe framework <path>` | Framework-specific best practices | `probe-framework` |
-| `/probe quick <path>` | 60-second top-5 issues summary | Lightweight pass across all |
-| `/probe health <path>` | Codebase vitals dashboard — scores, stats, hot spots, no individual findings | All sub-skills (scoring only) + all scripts |
-| `/probe diff [branch]` | PR-style review — only changed files vs branch (default: main) | All relevant sub-skills on diff only |
-| `/probe report` | Generate full report from last audit | `scripts/generate_report.py` |
+| `/codeprobe audit <path>` | Full audit — spawns all 4 agents in parallel | All 9 sub-skills via agents |
+| `/codeprobe solid <path>` | SOLID principles check only | `codeprobe-solid` |
+| `/codeprobe security <path>` | Security audit only | `codeprobe-security` |
+| `/codeprobe performance <path>` | Performance audit only | `codeprobe-performance` |
+| `/codeprobe patterns <path>` | Design pattern analysis only | `codeprobe-patterns` |
+| `/codeprobe smells <path>` | Code smells detection only | `codeprobe-code-smells` |
+| `/codeprobe architecture <path>` | Architecture & structure analysis | `codeprobe-architecture` |
+| `/codeprobe errors <path>` | Error handling audit | `codeprobe-error-handling` |
+| `/codeprobe tests <path>` | Test quality assessment | `codeprobe-testing` |
+| `/codeprobe framework <path>` | Framework-specific best practices | `codeprobe-framework` |
+| `/codeprobe quick <path>` | 60-second top-5 issues summary | Lightweight pass across all |
+| `/codeprobe health <path>` | Codebase vitals dashboard — scores, stats, hot spots, no individual findings | All sub-skills (scoring only) + all scripts |
+| `/codeprobe diff [branch]` | PR-style review — only changed files vs branch (default: main) | All relevant sub-skills on diff only |
+| `/codeprobe report` | Generate full report from last audit | `scripts/generate_report.py` |
 
 ### Severity Levels
 
@@ -140,7 +140,7 @@ Every sub-skill returns findings in this structure. **`fix_prompt` is a required
 
 ```json
 {
-  "skill": "probe-solid",
+  "skill": "codeprobe-solid",
   "file": "app/Services/OrderService.php",
   "findings": [
     {
@@ -183,21 +183,21 @@ Every sub-skill generates fix prompts. Here's what they look like per domain:
 
 | Sub-Skill | Example Fix Prompt |
 |---|---|
-| `probe-solid` | "Refactor OrderService: extract payment logic (lines 45-78) into a new PaymentService class. Inject via constructor." |
-| `probe-patterns` | "Replace the switch statement in NotificationSender (lines 30-65) with a Strategy pattern: create NotificationChannel interface with EmailChannel, SmsChannel, PushChannel implementations." |
-| `probe-security` | "In UserController@update (line 34), replace `$request->all()` with `$request->only(['name', 'email'])` to prevent mass assignment on is_admin field." |
-| `probe-performance` | "In OrderController@index (line 22), add `->with('items', 'customer')` to the Order query to fix the N+1 — currently loading 2 relations lazily inside the blade loop." |
-| `probe-architecture` | "Move the pricing calculation logic from OrderController@store (lines 40-75) into a new PricingService class under app/Services/. Controller should call `$this->pricingService->calculate($order)`." |
-| `probe-error-handling` | "Wrap the Stripe API call in PaymentService@charge (line 55) in a try/catch for `\Stripe\Exception\ApiErrorException`. Log the error with context and throw a domain-specific PaymentFailedException." |
-| `probe-testing` | "Write a test for OrderService@calculateTotal that covers: empty cart (expect 0), single item, multiple items, and item with discount. Use OrderFactory for test data." |
-| `probe-code-smells` | "Extract lines 45-90 of UserService@register into a private method `validateAndNormalizeInput()` — the method is 120 LOC doing 3 unrelated things." |
-| `probe-framework` | "Move the validation rules from OrderController@store (lines 15-30) into a new StoreOrderRequest form request class. Use `php artisan make:request StoreOrderRequest`." |
+| `codeprobe-solid` | "Refactor OrderService: extract payment logic (lines 45-78) into a new PaymentService class. Inject via constructor." |
+| `codeprobe-patterns` | "Replace the switch statement in NotificationSender (lines 30-65) with a Strategy pattern: create NotificationChannel interface with EmailChannel, SmsChannel, PushChannel implementations." |
+| `codeprobe-security` | "In UserController@update (line 34), replace `$request->all()` with `$request->only(['name', 'email'])` to prevent mass assignment on is_admin field." |
+| `codeprobe-performance` | "In OrderController@index (line 22), add `->with('items', 'customer')` to the Order query to fix the N+1 — currently loading 2 relations lazily inside the blade loop." |
+| `codeprobe-architecture` | "Move the pricing calculation logic from OrderController@store (lines 40-75) into a new PricingService class under app/Services/. Controller should call `$this->pricingService->calculate($order)`." |
+| `codeprobe-error-handling` | "Wrap the Stripe API call in PaymentService@charge (line 55) in a try/catch for `\Stripe\Exception\ApiErrorException`. Log the error with context and throw a domain-specific PaymentFailedException." |
+| `codeprobe-testing` | "Write a test for OrderService@calculateTotal that covers: empty cart (expect 0), single item, multiple items, and item with discount. Use OrderFactory for test data." |
+| `codeprobe-code-smells` | "Extract lines 45-90 of UserService@register into a private method `validateAndNormalizeInput()` — the method is 120 LOC doing 3 unrelated things." |
+| `codeprobe-framework` | "Move the validation rules from OrderController@store (lines 15-30) into a new StoreOrderRequest form request class. Use `php artisan make:request StoreOrderRequest`." |
 
 ---
 
 ## 4. Sub-Skill Specifications
 
-### 4.1 `probe-solid` — SOLID Principles Auditor
+### 4.1 `codeprobe-solid` — SOLID Principles Auditor
 
 **Domain:** SRP, OCP, LSP, ISP, DIP
 
@@ -218,7 +218,7 @@ Every sub-skill generates fix prompts. Here's what they look like per domain:
 
 ---
 
-### 4.2 `probe-patterns` — Design Patterns Advisor
+### 4.2 `codeprobe-patterns` — Design Patterns Advisor
 
 **Domain:** GoF patterns, domain patterns, architectural patterns
 
@@ -247,7 +247,7 @@ Every sub-skill generates fix prompts. Here's what they look like per domain:
 
 ---
 
-### 4.3 `probe-security` — Security Vulnerability Scanner
+### 4.3 `codeprobe-security` — Security Vulnerability Scanner
 
 **Domain:** OWASP Top 10, language-specific vulnerabilities
 
@@ -271,7 +271,7 @@ Every sub-skill generates fix prompts. Here's what they look like per domain:
 
 ---
 
-### 4.4 `probe-performance` — Performance & Scalability Auditor
+### 4.4 `codeprobe-performance` — Performance & Scalability Auditor
 
 **Domain:** Query performance, memory, caching, concurrency, algorithmic efficiency
 
@@ -290,7 +290,7 @@ Every sub-skill generates fix prompts. Here's what they look like per domain:
 
 ---
 
-### 4.5 `probe-architecture` — Architecture & Structure Analyzer
+### 4.5 `codeprobe-architecture` — Architecture & Structure Analyzer
 
 **Domain:** Layering, coupling, cohesion, module boundaries, dependency direction
 
@@ -308,7 +308,7 @@ Every sub-skill generates fix prompts. Here's what they look like per domain:
 
 ---
 
-### 4.6 `probe-error-handling` — Error Handling & Resilience Checker
+### 4.6 `codeprobe-error-handling` — Error Handling & Resilience Checker
 
 **Domain:** Exception handling, logging, graceful degradation, retry logic
 
@@ -326,7 +326,7 @@ Every sub-skill generates fix prompts. Here's what they look like per domain:
 
 ---
 
-### 4.7 `probe-testing` — Test Quality & Coverage Auditor
+### 4.7 `codeprobe-testing` — Test Quality & Coverage Auditor
 
 **Domain:** Unit tests, integration tests, test design, assertions
 
@@ -343,7 +343,7 @@ Every sub-skill generates fix prompts. Here's what they look like per domain:
 
 ---
 
-### 4.8 `probe-code-smells` — Code Smells & Anti-Pattern Detector
+### 4.8 `codeprobe-code-smells` — Code Smells & Anti-Pattern Detector
 
 **Domain:** Martin Fowler's refactoring catalog, general anti-patterns
 
@@ -370,7 +370,7 @@ Every sub-skill generates fix prompts. Here's what they look like per domain:
 
 ---
 
-### 4.9 `probe-framework` — Framework-Specific Best Practices
+### 4.9 `codeprobe-framework` — Framework-Specific Best Practices
 
 **Domain:** Laravel, Next.js, React, FastAPI, Supabase, etc.
 
@@ -400,25 +400,25 @@ Every sub-skill generates fix prompts. Here's what they look like per domain:
 
 ## 5. Agents (Parallel Execution)
 
-For `/probe audit`, the orchestrator spawns 4 agents simultaneously:
+For `/codeprobe audit`, the orchestrator spawns 4 agents simultaneously:
 
 ### `agent-structural.md`
-- Runs: `probe-solid`, `probe-architecture`, `probe-patterns`
+- Runs: `codeprobe-solid`, `codeprobe-architecture`, `codeprobe-patterns`
 - Focus: Is the code well-structured and maintainable?
 - Scope: Analyzes class hierarchy, module boundaries, dependency graph
 
 ### `agent-safety.md`
-- Runs: `probe-security`, `probe-error-handling`
+- Runs: `codeprobe-security`, `codeprobe-error-handling`
 - Focus: Is the code safe for production?
 - Scope: Vulnerability scan, exception handling, input validation
 
 ### `agent-quality.md`
-- Runs: `probe-code-smells`, `probe-testing`
+- Runs: `codeprobe-code-smells`, `codeprobe-testing`
 - Focus: Is the code clean and well-tested?
 - Scope: Smell detection, test coverage gaps, test quality
 
 ### `agent-runtime.md`
-- Runs: `probe-performance`, `probe-framework`
+- Runs: `codeprobe-performance`, `codeprobe-framework`
 - Focus: Does the code run efficiently and follow framework conventions?
 - Scope: Query optimization, caching, framework-specific anti-patterns
 
@@ -503,11 +503,11 @@ Language-specific rule sets loaded on-demand by sub-skills:
 {3. "Replace N+1 in OrderController@index — add ->with('items', 'customer') to the query"}
 ```
 
-### Health Dashboard Output (`/probe health`)
+### Health Dashboard Output (`/codeprobe health`)
 
 Different from audit. Health answers **"how healthy is this codebase?"** — not "what's wrong with it."
 
-| Aspect | `/probe audit` | `/probe health` |
+| Aspect | `/codeprobe audit` | `/codeprobe health` |
 |---|---|---|
 | Analogy | Full medical exam | Vitals dashboard |
 | Individual findings | ✅ Yes, with evidence + fix prompts | ❌ No — scores and stats only |
@@ -558,10 +558,10 @@ Hot Spots (files needing most attention):
   2. {file} — {n} categories flagged
   3. {file} — {n} categories flagged
 
-Run `/probe audit` for detailed findings and fix prompts.
+Run `/codeprobe audit` for detailed findings and fix prompts.
 ```
 
-**Status thresholds (configurable via `.probe-config.json`):**
+**Status thresholds (configurable via `.codeprobe-config.json`):**
 
 | Score Range | Status | Emoji |
 |---|---|---|
@@ -601,7 +601,7 @@ overall_score = Σ (category_score * weight)
 
 Clamped to [0, 100].
 
-### Configuration (`.probe-config.json`)
+### Configuration (`.codeprobe-config.json`)
 
 Optional project-level config to customize behavior:
 
@@ -613,7 +613,7 @@ Optional project-level config to customize behavior:
     "deep_nesting_max": 4,
     "max_constructor_deps": 6
   },
-  "skip_categories": ["probe-testing"],
+  "skip_categories": ["codeprobe-testing"],
   "skip_rules": ["SPEC-GEN-001"],
   "framework": "laravel",
   "extra_references": [],
@@ -631,9 +631,9 @@ If absent, all defaults apply. Orchestrator reads this from project root before 
 |---|---|---|
 | 1 | Target runtime | **Both** — Claude Code (full) + Claude.ai (degraded). See §10.1 below. |
 | 2 | Language priority for v1 | **All 6 references ship in v1.** Target all major stacks from day one. |
-| 3 | Git integration | **Both modes.** `audit` for full project scan. `/probe diff` for PR-style git diff. |
+| 3 | Git integration | **Both modes.** `audit` for full project scan. `/codeprobe diff` for PR-style git diff. |
 | 4 | CI integration | **Markdown first.** SARIF/JSON for GitHub Actions in a later phase. |
-| 5 | Severity calibration | **Configurable** via `.probe-config.json` — teams set their own thresholds. |
+| 5 | Severity calibration | **Configurable** via `.codeprobe-config.json` — teams set their own thresholds. |
 | 6 | Auto-fix | **No auto-fix.** Instead, generate a **"Fix Prompts"** section — copy-pasteable prompts the user can feed back into Claude Code to apply each fix. |
 | 7 | Incremental reviews | **Full scan for v1.** Incremental (changed-files-only) in a later phase. |
 | 8 | Test execution | **Static analysis only.** Never run `php artisan test`, `npm test`, etc. — side effects. |
@@ -654,10 +654,10 @@ Claude.ai has **no filesystem access** to the user's project. Code enters contex
 - Report generation (from in-context analysis)
 
 **What does NOT work in Claude.ai:**
-- `/probe audit <path>` (no filesystem path to scan)
+- `/codeprobe audit <path>` (no filesystem path to scan)
 - Parallel agents (no subagent spawning)
 - `scripts/dependency_mapper.py`, `complexity_scorer.py`, `file_stats.py` (no project filesystem)
-- `/probe diff` (no git repo access)
+- `/codeprobe diff` (no git repo access)
 - Incremental reviews (no state between sessions)
 
 **Orchestrator behavior in Claude.ai:**
@@ -683,24 +683,24 @@ User: uploads 3 files
 ## 11. Implementation Phases
 
 ### Phase 1 — Core (MVP)
-- Orchestrator skill (`probe/SKILL.md`) with Claude.ai degraded-mode detection
-- 4 sub-skills: `probe-solid`, `probe-security`, `probe-code-smells`, `probe-architecture`
+- Orchestrator skill (`codeprobe/SKILL.md`) with Claude.ai degraded-mode detection
+- 4 sub-skills: `codeprobe-solid`, `codeprobe-security`, `codeprobe-code-smells`, `codeprobe-architecture`
 - **All 6 reference files** (full stack coverage from day one)
 - 1 script: `file_stats.py`
 - Quick review + full audit report templates
 - Fix Prompts generation in all output
 - Sequential execution (no agents yet)
-- `.probe-config.json` schema for severity customization
+- `.codeprobe-config.json` schema for severity customization
 
 ### Phase 2 — Full Coverage
-- Remaining 5 sub-skills: `probe-patterns`, `probe-performance`, `probe-error-handling`, `probe-testing`, `probe-framework`
+- Remaining 5 sub-skills: `codeprobe-patterns`, `codeprobe-performance`, `codeprobe-error-handling`, `codeprobe-testing`, `codeprobe-framework`
 - All 4 scripts (`complexity_scorer.py`, `dependency_mapper.py`, `file_stats.py`, `generate_report.py`)
 - PR review comment template
 
 ### Phase 3 — Parallel & Polish
-- 4 parallel agents for `/probe audit`
+- 4 parallel agents for `/codeprobe audit`
 - `generate_report.py` for PDF output
-- `/probe diff` for git-based PR review
+- `/codeprobe diff` for git-based PR review
 - SARIF/JSON output for CI integration
 - Install/uninstall scripts
 - README + docs
@@ -724,7 +724,7 @@ User: uploads 3 files
 1. ✅ Spec reviewed — all open questions resolved
 2. ✅ Name finalized — `code-review-claude`
 3. Create GitHub repo `code-review-claude`
-4. Build orchestrator (`probe/SKILL.md`) with Claude.ai detection
+4. Build orchestrator (`codeprobe/SKILL.md`) with Claude.ai detection
 5. Build first 4 sub-skills (solid, security, code-smells, architecture)
 6. Write all 6 reference files
 7. Test on StatusLink or YaariXI codebase

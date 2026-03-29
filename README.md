@@ -1,10 +1,10 @@
-# code-review-claude
+# CodeProbe
 
 <p align="center">
-  <img src="assets/banner.svg" alt="CODE REVIEW - Senior-Engineer Code Review for Claude Code" width="900"/>
+  <img src="assets/banner.svg" alt="CodeProbe - Senior-Engineer Code Review for Claude Code" width="900"/>
 </p>
 
-Senior-engineer-level code review for [Claude Code](https://docs.anthropic.com/en/docs/claude-code).
+Senior-Engineer Code Review for [Claude Code](https://docs.anthropic.com/en/docs/claude-code).
 
 Reads your codebase, generates severity-scored findings across 9 categories -- security, SOLID principles, architecture, error handling, performance, test quality, code smells, design patterns, and framework best practices -- each with a copy-pasteable fix prompt you can run directly in Claude Code. **Strictly read-only: never modifies your code.**
 
@@ -43,32 +43,32 @@ cd code-review-claude
 ### Requirements
 
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) CLI
-- Python 3.8+ (optional -- enables `/probe health` statistics)
+- Python 3.8+ (optional -- enables `/codeprobe health` statistics)
 
 Then in any project:
 
 ```
-/probe audit .
+/codeprobe audit .
 ```
 
 ## Available Commands
 
 | Command | Description | Status |
 |---------|-------------|--------|
-| `/probe audit <path>` | Full audit -- all 9 categories, detailed findings, refactoring roadmap | Available |
-| `/probe solid <path>` | SOLID principles analysis | Available |
-| `/probe security <path>` | Security vulnerability detection | Available |
-| `/probe smells <path>` | Code smell detection | Available |
-| `/probe architecture <path>` | Architecture and dependency analysis | Available |
-| `/probe patterns <path>` | Design patterns analysis | Available |
-| `/probe performance <path>` | Performance audit | Available |
-| `/probe errors <path>` | Error handling audit | Available |
-| `/probe tests <path>` | Test quality audit | Available |
-| `/probe framework <path>` | Framework best practices | Available |
-| `/probe quick <path>` | Top 5 most impactful issues with fix prompts | Available |
-| `/probe health <path>` | Codebase vitals dashboard -- scores + file statistics | Available |
-| `/probe diff [branch]` | PR-style review of changed files | Phase 3 |
-| `/probe report` | Generate report from last audit | Phase 3 |
+| `/codeprobe audit <path>` | Full audit -- all 9 categories, detailed findings, refactoring roadmap | Available |
+| `/codeprobe solid <path>` | SOLID principles analysis | Available |
+| `/codeprobe security <path>` | Security vulnerability detection | Available |
+| `/codeprobe smells <path>` | Code smell detection | Available |
+| `/codeprobe architecture <path>` | Architecture and dependency analysis | Available |
+| `/codeprobe patterns <path>` | Design patterns analysis | Available |
+| `/codeprobe performance <path>` | Performance audit | Available |
+| `/codeprobe errors <path>` | Error handling audit | Available |
+| `/codeprobe tests <path>` | Test quality audit | Available |
+| `/codeprobe framework <path>` | Framework best practices | Available |
+| `/codeprobe quick <path>` | Top 5 most impactful issues with fix prompts | Available |
+| `/codeprobe health <path>` | Codebase vitals dashboard -- scores + file statistics | Available |
+| `/codeprobe diff [branch]` | PR-style review of changed files | Phase 3 |
+| `/codeprobe report` | Generate report from last audit | Phase 3 |
 
 If no path is given, the current working directory is used.
 
@@ -76,19 +76,19 @@ If no path is given, the current working directory is used.
 
 The system uses an **orchestrator + sub-skill** architecture:
 
-1. **Orchestrator** (`skills/probe/SKILL.md`) -- Routes commands, detects your tech stack, loads config, and invokes specialized sub-skills.
+1. **Orchestrator** (`skills/codeprobe/SKILL.md`) -- Routes commands, detects your tech stack, loads config, and invokes specialized sub-skills.
 2. **Sub-skills** -- Domain experts that each analyze one category:
-   - `probe-security` -- SQL injection, XSS, hardcoded secrets, auth issues
-   - `probe-error-handling` -- Swallowed exceptions, missing try/catch, transaction safety
-   - `probe-solid` -- Single Responsibility, Open/Closed, Liskov, Interface Segregation, Dependency Inversion
-   - `probe-architecture` -- Coupling, layering violations, circular dependencies, god objects
-   - `probe-patterns` -- Design pattern opportunities and anti-patterns
-   - `probe-performance` -- N+1 queries, unbounded queries, algorithmic efficiency, caching
-   - `probe-code-smells` -- Long methods, deep nesting, duplicate code, primitive obsession
-   - `probe-testing` -- Missing tests, test smells, mock abuse, coverage gaps
-   - `probe-framework` -- Laravel, React/Next.js, Python/Django framework idiom violations
-3. **Reference guides** (`skills/probe/references/`) -- Stack-specific best practices loaded based on auto-detected languages.
-4. **Scripts** (`skills/probe/scripts/`) -- Deterministic analysis utilities:
+   - `codeprobe-security` -- SQL injection, XSS, hardcoded secrets, auth issues
+   - `codeprobe-error-handling` -- Swallowed exceptions, missing try/catch, transaction safety
+   - `codeprobe-solid` -- Single Responsibility, Open/Closed, Liskov, Interface Segregation, Dependency Inversion
+   - `codeprobe-architecture` -- Coupling, layering violations, circular dependencies, god objects
+   - `codeprobe-patterns` -- Design pattern opportunities and anti-patterns
+   - `codeprobe-performance` -- N+1 queries, unbounded queries, algorithmic efficiency, caching
+   - `codeprobe-code-smells` -- Long methods, deep nesting, duplicate code, primitive obsession
+   - `codeprobe-testing` -- Missing tests, test smells, mock abuse, coverage gaps
+   - `codeprobe-framework` -- Laravel, React/Next.js, Python/Django framework idiom violations
+3. **Reference guides** (`skills/codeprobe/references/`) -- Stack-specific best practices loaded based on auto-detected languages.
+4. **Scripts** (`skills/codeprobe/scripts/`) -- Deterministic analysis utilities:
    - `file_stats.py` -- LOC, file counts, method counts per file
    - `complexity_scorer.py` -- Cyclomatic complexity per function
    - `dependency_mapper.py` -- Import graph and circular dependency detection
@@ -119,7 +119,7 @@ Each finding includes: ID, severity, file location, problem description, evidenc
 
 ## Configuration
 
-Create a `.probe-config.json` in your project root to customize behavior:
+Create a `.codeprobe-config.json` in your project root to customize behavior:
 
 ```json
 {
@@ -129,7 +129,7 @@ Create a `.probe-config.json` in your project root to customize behavior:
     "deep_nesting_max": 4,
     "max_constructor_deps": 6
   },
-  "skip_categories": ["probe-testing"],
+  "skip_categories": ["codeprobe-testing"],
   "skip_rules": ["SPEC-GEN-001"],
   "framework": "laravel",
   "extra_references": [],

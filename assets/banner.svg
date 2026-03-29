@@ -2,7 +2,7 @@
   <!-- Background -->
   <rect width="900" height="340" rx="8" fill="#0f172a"/>
 
-  <!-- Pixel art blocks: CODE REVIEW -->
+  <!-- Pixel art blocks: CODEPROBE -->
   <g fill="#f97316">
     <!-- C -->
     <rect x="136" y="45" width="11" height="11" rx="2"/>
@@ -188,14 +188,14 @@
 
   <!-- Commands list (right side) -->
   <g font-family="'SF Mono', 'Fira Code', 'Cascadia Code', Menlo, monospace" font-size="14" fill="#fdba74" text-anchor="end">
-    <text x="860" y="72">/probe audit &lt;path&gt;</text>
-    <text x="860" y="96">/probe security &lt;path&gt;</text>
-    <text x="860" y="120">/probe solid &lt;path&gt;</text>
-    <text x="860" y="144">/probe architecture &lt;path&gt;</text>
-    <text x="860" y="168">/probe performance &lt;path&gt;</text>
-    <text x="860" y="192">/probe tests &lt;path&gt;</text>
-    <text x="860" y="216">/probe health &lt;path&gt;</text>
-    <text x="860" y="240">/probe quick &lt;path&gt;</text>
+    <text x="860" y="72">/codeprobe audit &lt;path&gt;</text>
+    <text x="860" y="96">/codeprobe security &lt;path&gt;</text>
+    <text x="860" y="120">/codeprobe solid &lt;path&gt;</text>
+    <text x="860" y="144">/codeprobe architecture &lt;path&gt;</text>
+    <text x="860" y="168">/codeprobe performance &lt;path&gt;</text>
+    <text x="860" y="192">/codeprobe tests &lt;path&gt;</text>
+    <text x="860" y="216">/codeprobe health &lt;path&gt;</text>
+    <text x="860" y="240">/codeprobe quick &lt;path&gt;</text>
   </g>
 
   <!-- Stats bar -->

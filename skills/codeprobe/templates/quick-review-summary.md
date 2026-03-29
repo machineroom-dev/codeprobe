@@ -1,5 +1,5 @@
 <!--
-  Template for /probe quick output.
+  Template for /codeprobe quick output.
   The orchestrator reads this template and fills {placeholders} with actual data.
   Render as markdown in the user's terminal.
 
@@ -32,7 +32,7 @@
 
 **Estimated Score:** ~{score}/100
 
-Run `/probe audit {path}` for the full report with all findings, evidence, and refactoring roadmap.
+Run `/codeprobe audit {path}` for the full report with all findings, evidence, and refactoring roadmap.
 
 ---
 
