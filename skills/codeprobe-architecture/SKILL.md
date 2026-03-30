@@ -14,12 +14,6 @@ allowed-tools:
 
 # Architecture & Structure Analyzer
 
-## READ-ONLY CONSTRAINT
-
-**This sub-skill is strictly read-only. Never modify, write, edit, or delete any file in the user's codebase. Report findings only.**
-
----
-
 ## Domain Scope
 
 This sub-skill detects architectural and structural issues across these categories:
@@ -118,57 +112,9 @@ If Python 3 or the `file_stats.py` script is unavailable, estimate from reading 
 
 ---
 
-## Reference Loading
+## ID Prefix & Fix Prompt Examples
 
-If the project uses a specific framework or language, load the relevant reference file from `../codeprobe/references/{file}.md` using Read. Available references include:
-
-- `php-laravel.md` for PHP/Laravel projects (directory conventions, service layer patterns)
-- `javascript-typescript.md` for JS/TS projects (module patterns, barrel files)
-- `python.md` for Python projects (package structure, Django/FastAPI conventions)
-- `react-nextjs.md` for React/Next.js projects (app directory, component architecture)
-
-If the reference file is unavailable, continue the analysis without it.
-
----
-
-## Output Contract
-
-Every finding MUST include ALL of the following fields:
-
-```json
-{
-  "id": "ARCH-{NNN}",
-  "severity": "critical|major|minor|suggestion",
-  "location": { "file": "path/to/file.ext", "lines": "45-120" },
-  "problem": "One sentence describing what's wrong",
-  "evidence": "Concrete proof from the code — quote specific patterns, counts, names",
-  "suggestion": "Human-readable recommendation",
-  "fix_prompt": "Copy-pasteable prompt for Claude Code to apply the fix. Must reference specific file names, line ranges, method names, and the exact change to make.",
-  "refactored_sketch": "// optional: minimal code showing the fix direction"
-}
-```
-
-### ID Prefix
-
-All findings use the `ARCH-` prefix, numbered sequentially: `ARCH-001`, `ARCH-002`, `ARCH-003`, etc.
-
-### Rendered Finding Format
-
-```
-### {ID} | {Severity} | `{file}:{lines}`
-
-**Problem:** {problem description}
-
-**Evidence:**
-> {quoted code patterns, LOC counts, import chains, method lists, directory structure observations}
-
-**Suggestion:** {what to do to fix it}
-
-**Fix prompt:**
-> {copy-pasteable prompt for Claude Code}
-
-**Refactored sketch:** (optional)
-```
+All findings use the `ARCH-` prefix, numbered sequentially: `ARCH-001`, `ARCH-002`, etc.
 
 ### Fix Prompt Examples
 
@@ -177,36 +123,3 @@ All findings use the `ARCH-` prefix, numbered sequentially: `ARCH-001`, `ARCH-00
 - "Resolve the circular dependency between `billing/InvoiceService` and `shipping/ShippingCalculator`: extract the shared interface `ShippingCostProvider` into a `shared/contracts/` directory. Have `ShippingCalculator` implement `ShippingCostProvider`, and have `InvoiceService` depend on the interface instead of the concrete class."
 - "Replace the hardcoded URL `http://localhost:3000/api` at line 23 of `src/services/ApiClient.ts` with an environment variable: use `process.env.API_BASE_URL` loaded through the config module. Add `API_BASE_URL=http://localhost:3000/api` to `.env.example`."
 - "Create a domain-based directory structure: move `UserController`, `UserService`, `UserRepository`, and `UserPolicy` into a `app/Domains/User/` directory. Repeat for `Order`, `Payment`, and `Notification` domains. Each domain directory should contain its own controllers, services, models, and policies."
-
----
-
-## Execution Modes
-
-This sub-skill supports three modes, set by the orchestrator:
-
-### `full` Mode
-Analyze the target path thoroughly. Map the project structure, trace import graphs, measure file sizes, and check all architectural categories. Produce detailed findings for every detected issue with all required fields (id, severity, location, problem, evidence, suggestion, fix_prompt). Include refactored_sketch for major and critical findings showing the target architecture. Run `file_stats.py` if available.
-
-### `scan` Mode
-Quick count of architectural issues by severity. Identify the worst offenders (largest files, most coupled modules). Skip the `evidence` and `fix_prompt` fields. Return:
-- Count of issues per category (Layer Violations, Circular Dependencies, God Objects, Anemic Domain, Missing Boundaries, Directory Structure, Config/Environment)
-- Count by severity (critical, major, minor, suggestion)
-- Top 3 architecturally problematic files/modules with brief descriptions
-
-### `score-only` Mode
-Analyze the target path with the **same thoroughness and detection depth as `full` mode** — scan all files, apply all detection rules, identify all violations. The difference is output only: return only the summary severity counts, no individual findings, no evidence, no fix prompts. This ensures that health scores match audit scores for the same codebase. Output the summary object only.
-
----
-
-## Summary Output
-
-At the end of every execution (regardless of mode), provide a summary:
-
-```json
-{
-  "skill": "codeprobe-architecture",
-  "summary": { "critical": 0, "major": 0, "minor": 0, "suggestion": 0 }
-}
-```
-
-Replace the zeros with actual counts from the analysis.

@@ -15,12 +15,6 @@ allowed-tools:
 
 # Security Vulnerability Scanner
 
-## READ-ONLY CONSTRAINT
-
-**This sub-skill is strictly read-only. Never modify, write, edit, or delete any file in the user's codebase. Report findings only.**
-
----
-
 ## Domain Scope
 
 This sub-skill detects security vulnerabilities across these categories:
@@ -123,57 +117,9 @@ This sub-skill detects security vulnerabilities across these categories:
 
 ---
 
-## Reference Loading
+## ID Prefix & Fix Prompt Examples
 
-If the project uses a specific framework or language, load the relevant reference file from `../codeprobe/references/{file}.md` using Read. Available references include:
-
-- `php-laravel.md` for PHP/Laravel projects (mass assignment, Blade XSS, middleware patterns)
-- `javascript-typescript.md` for JS/TS projects (XSS in React/Vue, prototype pollution)
-- `python.md` for Python projects (pickle deserialization, Django/FastAPI security)
-- `react-nextjs.md` for React/Next.js projects (dangerouslySetInnerHTML, API route security)
-
-If the reference file is unavailable, continue the analysis without it.
-
----
-
-## Output Contract
-
-Every finding MUST include ALL of the following fields:
-
-```json
-{
-  "id": "SEC-{NNN}",
-  "severity": "critical|major|minor|suggestion",
-  "location": { "file": "path/to/file.ext", "lines": "45-120" },
-  "problem": "One sentence describing what's wrong",
-  "evidence": "Concrete proof from the code — quote specific patterns, counts, names",
-  "suggestion": "Human-readable recommendation",
-  "fix_prompt": "Copy-pasteable prompt for Claude Code to apply the fix. Must reference specific file names, line ranges, method names, and the exact change to make.",
-  "refactored_sketch": "// optional: minimal code showing the fix direction"
-}
-```
-
-### ID Prefix
-
-All findings use the `SEC-` prefix, numbered sequentially: `SEC-001`, `SEC-002`, `SEC-003`, etc.
-
-### Rendered Finding Format
-
-```
-### {ID} | {Severity} | `{file}:{lines}`
-
-**Problem:** {problem description}
-
-**Evidence:**
-> {quoted code patterns, specific variable names, line references, data flow description}
-
-**Suggestion:** {what to do to fix it}
-
-**Fix prompt:**
-> {copy-pasteable prompt for Claude Code}
-
-**Refactored sketch:** (optional)
-```
+All findings use the `SEC-` prefix, numbered sequentially: `SEC-001`, `SEC-002`, etc.
 
 ### Fix Prompt Examples
 
@@ -181,36 +127,3 @@ All findings use the `SEC-` prefix, numbered sequentially: `SEC-001`, `SEC-002`,
 - "Wrap the user input at line 55 of `app/Services/SearchService.php` in a parameterized query: change `DB::select(\"SELECT * FROM products WHERE name LIKE '%$search%'\")` to `DB::select('SELECT * FROM products WHERE name LIKE ?', [\"%{$search}%\"])`."
 - "In `routes/api.php`, add auth middleware to the `POST /api/orders` route at line 22: change `Route::post('/orders', [OrderController::class, 'store'])` to `Route::post('/orders', [OrderController::class, 'store'])->middleware('auth:sanctum')`."
 - "Move the hardcoded API key at line 15 of `config/services.php` to an environment variable: replace `'key' => 'sk-live-abc123...'` with `'key' => env('STRIPE_SECRET_KEY')` and add `STRIPE_SECRET_KEY=` to `.env.example`."
-
----
-
-## Execution Modes
-
-This sub-skill supports three modes, set by the orchestrator:
-
-### `full` Mode
-Analyze the target path thoroughly. Scan every source file for all security vulnerability categories. Produce detailed findings for every detected vulnerability with all required fields (id, severity, location, problem, evidence, suggestion, fix_prompt). Include refactored_sketch for critical findings. Trace data flow from user input to dangerous sinks where possible.
-
-### `scan` Mode
-Quick count of vulnerabilities by severity. Identify the worst offenders (files with the most security issues). Skip the `evidence` and `fix_prompt` fields. Return:
-- Count of vulnerabilities per category (Injection, Auth, XSS, Mass Assignment, CSRF, Deserialization, Data Exposure, Access Control, Misconfiguration)
-- Count by severity (critical, major, minor, suggestion)
-- Top 3 most vulnerable files with brief descriptions
-
-### `score-only` Mode
-Analyze the target path with the **same thoroughness and detection depth as `full` mode** — scan all files, apply all detection rules, identify all violations. The difference is output only: return only the summary severity counts, no individual findings, no evidence, no fix prompts. This ensures that health scores match audit scores for the same codebase. Output the summary object only.
-
----
-
-## Summary Output
-
-At the end of every execution (regardless of mode), provide a summary:
-
-```json
-{
-  "skill": "codeprobe-security",
-  "summary": { "critical": 0, "major": 0, "minor": 0, "suggestion": 0 }
-}
-```
-
-Replace the zeros with actual counts from the analysis.

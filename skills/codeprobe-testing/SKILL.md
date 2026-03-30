@@ -14,12 +14,6 @@ allowed-tools:
 
 # Test Quality & Coverage Auditor
 
-## READ-ONLY CONSTRAINT
-
-**This sub-skill is strictly read-only. Never modify, write, edit, or delete any file in the user's codebase. Report findings only.**
-
----
-
 ## Domain Scope
 
 This sub-skill detects test quality and coverage issues across six categories:
@@ -100,58 +94,9 @@ This sub-skill detects test quality and coverage issues across six categories:
 
 ---
 
-## Reference Loading
+## ID Prefix & Fix Prompt Examples
 
-If the project uses a specific framework or language, load the relevant reference file from `../codeprobe/references/{file}.md` using Read. Available references include:
-
-- `php-laravel.md` for PHPUnit/Pest testing patterns
-- `javascript-typescript.md` for Jest/Vitest testing patterns
-- `python.md` for pytest/unittest patterns
-
-If the reference file is unavailable, continue the analysis without it.
-
----
-
-## Output Contract
-
-Every finding MUST include ALL of the following fields:
-
-```json
-{
-  "id": "TEST-{NNN}",
-  "severity": "critical|major|minor|suggestion",
-  "location": { "file": "path/to/file.ext", "lines": "45-120" },
-  "problem": "One sentence describing what's wrong",
-  "evidence": "Concrete proof from the code — quote specific patterns, counts, names",
-  "suggestion": "Human-readable recommendation",
-  "fix_prompt": "Copy-pasteable prompt for Claude Code to apply the fix. Must reference specific file names, line ranges, method names, and the exact change to make.",
-  "refactored_sketch": "// optional: minimal code showing the fix direction"
-}
-```
-
-### ID Prefix
-
-- `TEST-` — All test quality and coverage findings
-
-Number findings sequentially: `TEST-001`, `TEST-002`, `TEST-003`, etc.
-
-### Rendered Finding Format
-
-```
-### {ID} | {Severity} | `{file}:{lines}`
-
-**Problem:** {problem description}
-
-**Evidence:**
-> {quoted code patterns, method names, counts, specific line references}
-
-**Suggestion:** {what to do to fix it}
-
-**Fix prompt:**
-> {copy-pasteable prompt for Claude Code}
-
-**Refactored sketch:** (optional)
-```
+All findings use the `TEST-` prefix, numbered sequentially: `TEST-001`, `TEST-002`, etc.
 
 ### Fix Prompt Examples
 
@@ -159,36 +104,3 @@ Number findings sequentially: `TEST-001`, `TEST-002`, `TEST-003`, etc.
 - "The test `test_user_can_login` at `tests/Feature/AuthTest.php:25` has no assertions — it only calls the login endpoint. Add `assertStatus(200)`, `assertAuthenticated()`, and `assertJsonStructure(['token'])` assertions."
 - "In `tests/Unit/PaymentServiceTest.php:40`, the mock chain is mocking too deeply. Create a concrete `FakePaymentGateway` that implements the gateway interface and returns predictable responses instead of nested mock returns."
 - "Replace the hardcoded user ID `42` in `tests/Feature/OrderTest.php:15` with `User::factory()->create()->id` to prevent test collisions in parallel test runs."
-
----
-
-## Execution Modes
-
-This sub-skill supports three modes, set by the orchestrator:
-
-### `full` Mode
-Analyze the target path thoroughly. Produce detailed findings for every detected violation with all required fields (id, severity, location, problem, evidence, suggestion, fix_prompt). Include refactored_sketch for major and critical findings where it adds clarity.
-
-### `scan` Mode
-Quick count of violations by severity. Identify the worst offenders (files/classes with the most violations). Skip the `evidence` and `fix_prompt` fields. Return:
-- Count of violations per category (Missing Tests, Test Smells, Test Structure, Mock Abuse, Coverage Gaps, Test Data)
-- Count by severity (critical, major, minor, suggestion)
-- Top 3 worst-offending files with brief descriptions
-
-### `score-only` Mode
-Analyze the target path with the **same thoroughness and detection depth as `full` mode** — scan all files, apply all detection rules, identify all violations. The difference is output only: return only the summary severity counts, no individual findings, no evidence, no fix prompts. This ensures that health scores match audit scores for the same codebase. Output the summary object only.
-
----
-
-## Summary Output
-
-At the end of every execution (regardless of mode), provide a summary:
-
-```json
-{
-  "skill": "codeprobe-testing",
-  "summary": { "critical": 0, "major": 0, "minor": 0, "suggestion": 0 }
-}
-```
-
-Replace the zeros with actual counts from the analysis.

@@ -15,12 +15,6 @@ allowed-tools:
 
 # Performance & Scalability Auditor
 
-## READ-ONLY CONSTRAINT
-
-**This sub-skill is strictly read-only. Never modify, write, edit, or delete any file in the user's codebase. Report findings only.**
-
----
-
 ## Domain Scope
 
 This sub-skill detects performance and scalability issues across these categories:
@@ -111,63 +105,15 @@ This sub-skill detects performance and scalability issues across these categorie
 | `PERF` | Large bundle imports | `import _ from 'lodash'` (imports entire library), `import moment from 'moment'` (large library where `date-fns` or `dayjs` suffice), `import * as icons from 'icon-library'`. | Minor |
 | `PERF` | Missing lazy loading | No `React.lazy()` / dynamic `import()` for route-level code splitting. Heavy components loaded eagerly on initial page load. | Minor |
 
----
-
-## Reference Loading
-
-If the project uses a specific framework or language, load the relevant reference file from `../codeprobe/references/{file}.md` using Read. Available references include:
-
-- `sql-database.md` for N+1, index, and query optimization patterns
-- `php-laravel.md` for Eloquent eager loading, caching, queue patterns
-- `javascript-typescript.md` for async patterns, bundle optimization
-- `react-nextjs.md` for component re-render optimization, SSR/SSG patterns
-
-If the reference file is unavailable, continue the analysis without it.
-
 ### Optional Script Integration
 
 When `scripts/complexity_scorer.py` output is available (run by the orchestrator during `/codeprobe health` or `/codeprobe audit`), use it to identify high-complexity functions as performance hot-spot candidates. Functions rated "high" or "very_high" that also appear in hot paths (request handlers, loop bodies, frequently-called utilities) are strong signals for algorithmic efficiency findings.
 
 ---
 
-## Output Contract
+## ID Prefix & Fix Prompt Examples
 
-Every finding MUST include ALL of the following fields:
-
-```json
-{
-  "id": "PERF-{NNN}",
-  "severity": "critical|major|minor|suggestion",
-  "location": { "file": "path/to/file.ext", "lines": "45-120" },
-  "problem": "One sentence describing what's wrong",
-  "evidence": "Concrete proof from the code — quote specific patterns, counts, names",
-  "suggestion": "Human-readable recommendation",
-  "fix_prompt": "Copy-pasteable prompt for Claude Code to apply the fix. Must reference specific file names, line ranges, method names, and the exact change to make.",
-  "refactored_sketch": "// optional: minimal code showing the fix direction"
-}
-```
-
-### ID Prefix
-
-All findings use the `PERF-` prefix, numbered sequentially: `PERF-001`, `PERF-002`, `PERF-003`, etc.
-
-### Rendered Finding Format
-
-```
-### {ID} | {Severity} | `{file}:{lines}`
-
-**Problem:** {problem description}
-
-**Evidence:**
-> {quoted code patterns, specific variable names, line references, data flow description}
-
-**Suggestion:** {what to do to fix it}
-
-**Fix prompt:**
-> {copy-pasteable prompt for Claude Code}
-
-**Refactored sketch:** (optional)
-```
+All findings use the `PERF-` prefix, numbered sequentially: `PERF-001`, `PERF-002`, etc.
 
 ### Fix Prompt Examples
 
@@ -175,36 +121,3 @@ All findings use the `PERF-` prefix, numbered sequentially: `PERF-001`, `PERF-00
 - "Replace `Product::all()` at line 30 of `CatalogService.php` with `Product::query()->paginate(25)` or `Product::cursor()` if processing all records. The current query loads all products into memory."
 - "In `ReportGenerator@aggregate` (lines 45-60), the nested loop iterating `$orders` inside `$customers` is O(n*m). Build a lookup hashmap before the outer loop: `$ordersByCustomerId = collect($orders)->groupBy('customer_id')`."
 - "Replace `import _ from 'lodash'` at line 3 of `src/utils/helpers.ts` with specific imports: `import debounce from 'lodash/debounce'` to reduce bundle size."
-
----
-
-## Execution Modes
-
-This sub-skill supports three modes, set by the orchestrator:
-
-### `full` Mode
-Analyze the target path thoroughly. Scan every source file for all performance and scalability categories. Produce detailed findings for every detected issue with all required fields (id, severity, location, problem, evidence, suggestion, fix_prompt). Include refactored_sketch for critical findings. Trace query patterns, loop structures, and data flow where possible.
-
-### `scan` Mode
-Quick count of issues by severity. Identify the worst offenders (files with the most performance problems). Skip the `evidence` and `fix_prompt` fields. Return:
-- Count of issues per category (N+1 Queries, Missing Indexes, Unbounded Queries, Memory, Caching, Algorithmic Efficiency, Concurrency, Frontend Performance)
-- Count by severity (critical, major, minor, suggestion)
-- Top 3 most problematic files with brief descriptions
-
-### `score-only` Mode
-Analyze the target path with the **same thoroughness and detection depth as `full` mode** — scan all files, apply all detection rules, identify all violations. The difference is output only: return only the summary severity counts, no individual findings, no evidence, no fix prompts. This ensures that health scores match audit scores for the same codebase. Output the summary object only.
-
----
-
-## Summary Output
-
-At the end of every execution (regardless of mode), provide a summary:
-
-```json
-{
-  "skill": "codeprobe-performance",
-  "summary": { "critical": 0, "major": 0, "minor": 0, "suggestion": 0 }
-}
-```
-
-Replace the zeros with actual counts from the analysis.

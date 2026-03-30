@@ -133,18 +133,40 @@ Check for a `.codeprobe-config.json` file in the project root (the target path o
 
 ## 4. Sub-Skill Execution
 
+### Pre-Loading Phase (runs once before any sub-skill)
+
+Before invoking any sub-skill, the orchestrator MUST pre-load all shared context:
+
+1. **Read the shared preamble** from `shared-preamble.md` (in this skill's directory). This contains the output contract, execution modes, and constraints shared by all sub-skills.
+
+2. **Read all source files** at the target path:
+   - Use Glob to find all source files (`.ts`, `.tsx`, `.js`, `.jsx`, `.py`, `.php`, `.vue`, `.sql`, `.css`, `.scss` and config files like `next.config.*`, `package.json`, `composer.json`, `requirements.txt`, `.env.example`).
+   - Read each file using Read.
+   - **Size cap:** If the codebase has more than 50 source files or total LOC exceeds 10,000 lines, do NOT pre-load all files. Instead, pass only the file listing (paths + line counts) and let sub-agents read files they need. Note this in the agent prompt: "Large codebase — file listing provided, use Read for files you need to inspect."
+   - Store all file contents as a map: `{filepath: content}`.
+
+3. **Read all applicable reference files** (already loaded during stack detection in Section 2). Store the content.
+
 ### Invocation Protocol
 
-For each sub-skill to run:
+For each sub-skill to run, spawn an Agent with a prompt that includes:
 
-1. **Invoke the sub-skill by name** (e.g., `codeprobe-solid`, `codeprobe-security`).
-2. **Pass the following context** to each sub-skill:
-   - `target_path`: The path to review.
-   - `detected_stack`: List of detected technology stacks.
-   - `references`: Content of all loaded reference files.
-   - `config_overrides`: Severity overrides and skip rules from config.
-   - `mode`: One of `full`, `scan`, or `score-only` (see below).
-3. **Collect findings** returned by each sub-skill in the standard output contract format (Section 5).
+1. **The shared preamble** (from `shared-preamble.md`) — output contract, modes, constraints.
+2. **The sub-skill name** to invoke (e.g., `codeprobe-security`).
+3. **The mode** — one of `full`, `scan`, or `score-only`.
+4. **Pre-loaded source files** — the full content of every source file, formatted as:
+   ```
+   === FILE: {filepath} ===
+   {content}
+   === END FILE ===
+   ```
+5. **Pre-loaded references** — the content of all applicable reference files.
+6. **Config overrides** — severity overrides and skip rules from `.codeprobe-config.json`.
+7. **Target path** — so the sub-skill knows the project root for any targeted lookups.
+
+The sub-skill's own SKILL.md contains only its domain-specific detection logic. All shared context (output format, modes, source code, references) comes from the orchestrator's prompt.
+
+**Collect findings** returned by each sub-skill in the standard output contract format (Section 5).
 
 ### Execution Modes
 

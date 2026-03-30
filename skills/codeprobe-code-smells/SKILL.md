@@ -14,12 +14,6 @@ allowed-tools:
 
 # Code Smells & Anti-Pattern Detector
 
-## READ-ONLY CONSTRAINT
-
-**This sub-skill is strictly read-only. Never modify, write, edit, or delete any file in the user's codebase. Report findings only.**
-
----
-
 ## Domain Scope
 
 This sub-skill detects code smells and anti-patterns organized into these categories:
@@ -104,57 +98,9 @@ Before analysis, check for a `.codeprobe-config.json` file in the project root. 
 
 ---
 
-## Reference Loading
+## ID Prefix & Fix Prompt Examples
 
-If the project uses a specific framework or language, load the relevant reference file from `../codeprobe/references/{file}.md` using Read. Available references include:
-
-- `php-laravel.md` for PHP/Laravel projects
-- `javascript-typescript.md` for JS/TS projects
-- `python.md` for Python projects
-- `react-nextjs.md` for React/Next.js projects
-
-If the reference file is unavailable, continue the analysis without it.
-
----
-
-## Output Contract
-
-Every finding MUST include ALL of the following fields:
-
-```json
-{
-  "id": "SMELL-{NNN}",
-  "severity": "critical|major|minor|suggestion",
-  "location": { "file": "path/to/file.ext", "lines": "45-120" },
-  "problem": "One sentence describing what's wrong",
-  "evidence": "Concrete proof from the code — quote specific patterns, counts, names",
-  "suggestion": "Human-readable recommendation",
-  "fix_prompt": "Copy-pasteable prompt for Claude Code to apply the fix. Must reference specific file names, line ranges, method names, and the exact change to make.",
-  "refactored_sketch": "// optional: minimal code showing the fix direction"
-}
-```
-
-### ID Prefix
-
-All findings use the `SMELL-` prefix, numbered sequentially: `SMELL-001`, `SMELL-002`, `SMELL-003`, etc.
-
-### Rendered Finding Format
-
-```
-### {ID} | {Severity} | `{file}:{lines}`
-
-**Problem:** {problem description}
-
-**Evidence:**
-> {quoted code patterns, line counts, specific method/class names, threshold comparison}
-
-**Suggestion:** {what to do to fix it}
-
-**Fix prompt:**
-> {copy-pasteable prompt for Claude Code}
-
-**Refactored sketch:** (optional)
-```
+All findings use the `SMELL-` prefix, numbered sequentially: `SMELL-001`, `SMELL-002`, etc.
 
 ### Fix Prompt Examples
 
@@ -163,36 +109,3 @@ All findings use the `SMELL-` prefix, numbered sequentially: `SMELL-001`, `SMELL
 - "Refactor `processOrder(bool $isExpress, bool $requiresSignature, bool $isFragile)` in `OrderProcessor.php` (line 30) to accept a `ShippingOptions` value object instead of 3 boolean parameters. Create a `ShippingOptions` class with named properties."
 - "Remove the commented-out code block at lines 88-105 of `PaymentGateway.php` — this is dead code from a previous implementation. If needed later, it can be recovered from version control."
 - "In `ReportGenerator.php`, the `generate()` method at line 20 is 95 LOC. Extract the data-fetching logic (lines 25-50) into `fetchReportData()` and the formatting logic (lines 51-85) into `formatReport()`. The `generate()` method should orchestrate these two steps."
-
----
-
-## Execution Modes
-
-This sub-skill supports three modes, set by the orchestrator:
-
-### `full` Mode
-Analyze the target path thoroughly. Scan every source file for all code smell categories. Apply configured thresholds. Produce detailed findings for every detected smell with all required fields (id, severity, location, problem, evidence, suggestion, fix_prompt). Include refactored_sketch for major findings where it adds clarity. Report exact LOC counts and threshold comparisons in evidence.
-
-### `scan` Mode
-Quick count of smells by severity. Identify the worst offenders (files/classes with the most smells). Skip the `evidence` and `fix_prompt` fields. Return:
-- Count of smells per category (Bloaters, OO Abusers, Change Preventers, Dispensables, Couplers, Readability)
-- Count by severity (critical, major, minor, suggestion)
-- Top 3 smelliest files with brief descriptions
-
-### `score-only` Mode
-Analyze the target path with the **same thoroughness and detection depth as `full` mode** — scan all files, apply all detection rules, identify all violations. The difference is output only: return only the summary severity counts, no individual findings, no evidence, no fix prompts. This ensures that health scores match audit scores for the same codebase. Output the summary object only.
-
----
-
-## Summary Output
-
-At the end of every execution (regardless of mode), provide a summary:
-
-```json
-{
-  "skill": "codeprobe-code-smells",
-  "summary": { "critical": 0, "major": 0, "minor": 0, "suggestion": 0 }
-}
-```
-
-Replace the zeros with actual counts from the analysis.

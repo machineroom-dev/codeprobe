@@ -15,12 +15,6 @@ allowed-tools:
 
 # Error Handling & Resilience Checker
 
-## READ-ONLY CONSTRAINT
-
-**This sub-skill is strictly read-only. Never modify, write, edit, or delete any file in the user's codebase. Report findings only.**
-
----
-
 ## Domain Scope
 
 This sub-skill detects error handling and resilience issues across these categories:
@@ -104,56 +98,9 @@ This sub-skill detects error handling and resilience issues across these categor
 
 ---
 
-## Reference Loading
+## ID Prefix & Fix Prompt Examples
 
-If the project uses a specific framework or language, load the relevant reference file from `../codeprobe/references/{file}.md` using Read. Available references include:
-
-- `php-laravel.md` for PHP/Laravel projects (DB::transaction, queue retry patterns)
-- `javascript-typescript.md` for JS/TS projects (async/await error handling, Promise patterns)
-- `python.md` for Python projects (Django/FastAPI exception handlers, context managers)
-
-If the reference file is unavailable, continue the analysis without it.
-
----
-
-## Output Contract
-
-Every finding MUST include ALL of the following fields:
-
-```json
-{
-  "id": "ERR-{NNN}",
-  "severity": "critical|major|minor|suggestion",
-  "location": { "file": "path/to/file.ext", "lines": "45-120" },
-  "problem": "One sentence describing what's wrong",
-  "evidence": "Concrete proof from the code — quote specific patterns, counts, names",
-  "suggestion": "Human-readable recommendation",
-  "fix_prompt": "Copy-pasteable prompt for Claude Code to apply the fix. Must reference specific file names, line ranges, method names, and the exact change to make.",
-  "refactored_sketch": "// optional: minimal code showing the fix direction"
-}
-```
-
-### ID Prefix
-
-All findings use the `ERR-` prefix, numbered sequentially: `ERR-001`, `ERR-002`, `ERR-003`, etc.
-
-### Rendered Finding Format
-
-```
-### {ID} | {Severity} | `{file}:{lines}`
-
-**Problem:** {problem description}
-
-**Evidence:**
-> {quoted code patterns, specific variable names, line references, data flow description}
-
-**Suggestion:** {what to do to fix it}
-
-**Fix prompt:**
-> {copy-pasteable prompt for Claude Code}
-
-**Refactored sketch:** (optional)
-```
+All findings use the `ERR-` prefix, numbered sequentially: `ERR-001`, `ERR-002`, etc.
 
 ### Fix Prompt Examples
 
@@ -161,36 +108,3 @@ All findings use the `ERR-` prefix, numbered sequentially: `ERR-001`, `ERR-002`,
 - "Add `DB::transaction()` around the order creation flow in `OrderService@create` (lines 40-65) which currently creates an Order, OrderItems, and Payment record in three separate queries. If any step fails, all should roll back."
 - "Replace the empty catch block at `app/Services/NotificationService.php:88` with proper error handling: log the exception with notification context, then decide whether to rethrow (critical notification) or swallow with a metric (non-critical)."
 - "Add timeout and retry configuration to the HTTP client call at `ExternalApiClient.php:30`. Use `->timeout(10)->retry(3, 100)` for the Guzzle request to handle transient network failures."
-
----
-
-## Execution Modes
-
-This sub-skill supports three modes, set by the orchestrator:
-
-### `full` Mode
-Analyze the target path thoroughly. Scan every source file for all error handling categories. Produce detailed findings for every detected issue with all required fields (id, severity, location, problem, evidence, suggestion, fix_prompt). Include refactored_sketch for critical findings. Trace exception flow and identify silent failure paths where possible.
-
-### `scan` Mode
-Quick count of issues by severity. Identify the worst offenders (files with the most error handling problems). Skip the `evidence` and `fix_prompt` fields. Return:
-- Count of issues per category (Swallowed Exceptions, Missing Error Handling, Error Information, Retry & Circuit Breaker, Validation, Transaction Safety, Logging)
-- Count by severity (critical, major, minor, suggestion)
-- Top 3 most problematic files with brief descriptions
-
-### `score-only` Mode
-Analyze the target path with the **same thoroughness and detection depth as `full` mode** — scan all files, apply all detection rules, identify all violations. The difference is output only: return only the summary severity counts, no individual findings, no evidence, no fix prompts. This ensures that health scores match audit scores for the same codebase. Output the summary object only.
-
----
-
-## Summary Output
-
-At the end of every execution (regardless of mode), provide a summary:
-
-```json
-{
-  "skill": "codeprobe-error-handling",
-  "summary": { "critical": 0, "major": 0, "minor": 0, "suggestion": 0 }
-}
-```
-
-Replace the zeros with actual counts from the analysis.

@@ -14,12 +14,6 @@ allowed-tools:
 
 # Design Patterns Advisor
 
-## READ-ONLY CONSTRAINT
-
-**This sub-skill is strictly read-only. Never modify, write, edit, or delete any file in the user's codebase. Report findings only.**
-
----
-
 ## Domain Scope
 
 **Never recommend a pattern for the sake of it. Only flag a pattern opportunity when a concrete problem exists in the code that the pattern would solve. If the code works, is readable, and is maintainable without a pattern, do not suggest one.**
@@ -82,59 +76,9 @@ This sub-skill detects two categories of design pattern issues:
 
 ---
 
-## Reference Loading
+## ID Prefix & Fix Prompt Examples
 
-All language references are relevant since patterns are language-agnostic, but implementations differ. If the project uses a specific framework or language, load the relevant reference file from `../codeprobe/references/{file}.md` using Read:
-
-- `php-laravel.md` for Laravel-specific patterns (Service Container, Repositories, Events)
-- `javascript-typescript.md` for JS patterns (module patterns, async patterns)
-- `python.md` for Python patterns (decorators, context managers, metaclasses)
-- `react-nextjs.md` for React patterns (HOCs, render props, hooks composition)
-
-If the reference file is unavailable, continue the analysis without it.
-
----
-
-## Output Contract
-
-Every finding MUST include ALL of the following fields:
-
-```json
-{
-  "id": "PATTERN-{NNN}",
-  "severity": "critical|major|minor|suggestion",
-  "location": { "file": "path/to/file.ext", "lines": "45-120" },
-  "problem": "One sentence describing what's wrong",
-  "evidence": "Concrete proof from the code — quote specific patterns, counts, names",
-  "suggestion": "Human-readable recommendation",
-  "fix_prompt": "Copy-pasteable prompt for Claude Code to apply the fix. Must reference specific file names, line ranges, method names, and the exact change to make.",
-  "refactored_sketch": "// optional: minimal code showing the fix direction"
-}
-```
-
-### ID Prefix
-
-- `PATTERN-` — All findings use the `PATTERN-` prefix.
-
-Number findings sequentially: `PATTERN-001`, `PATTERN-002`, `PATTERN-003`, etc.
-
-### Rendered Finding Format
-
-```
-### {ID} | {Severity} | `{file}:{lines}`
-
-**Problem:** {problem description}
-
-**Evidence:**
-> {quoted code patterns, method names, counts, specific line references}
-
-**Suggestion:** {what to do to fix it}
-
-**Fix prompt:**
-> {copy-pasteable prompt for Claude Code}
-
-**Refactored sketch:** (optional)
-```
+All findings use the `PATTERN-` prefix, numbered sequentially: `PATTERN-001`, `PATTERN-002`, etc.
 
 ### Fix Prompt Examples
 
@@ -142,36 +86,3 @@ Number findings sequentially: `PATTERN-001`, `PATTERN-002`, `PATTERN-003`, etc.
 - "Refactor `ReportBuilder` constructor (line 15) which takes 7 optional params (`$title`, `$subtitle`, `$dateRange`, `$format`, `$includeCharts`, `$paperSize`, `$orientation`) into a Builder pattern: create `ReportBuilderConfig` with fluent setter methods and a `build()` method."
 - "The `AuditLogger` at `app/Services/AuditLogger.php` uses `AuditLogger::getInstance()` (line 5) as a singleton. Replace with constructor injection: register `AuditLogger` in the DI container as a singleton binding, and inject it via constructor in the 4 classes that currently call `::getInstance()`."
 - "Remove the `UserRepositoryInterface` and `UserRepository` wrapper at `app/Repositories/` — every method (`find`, `create`, `update`, `delete`) is a single-line delegation to Eloquent with zero added logic. Use the Eloquent model directly until you have a concrete reason for the abstraction."
-
----
-
-## Execution Modes
-
-This sub-skill supports three modes, set by the orchestrator:
-
-### `full` Mode
-Analyze the target path thoroughly. Produce detailed findings for every detected violation with all required fields (id, severity, location, problem, evidence, suggestion, fix_prompt). Include refactored_sketch for major and critical findings where it adds clarity.
-
-### `scan` Mode
-Quick count of violations by severity. Identify the worst offenders (files/classes with the most violations). Skip the `evidence` and `fix_prompt` fields. Return:
-- Count of violations per category (Pattern Opportunities, Anti-Patterns)
-- Count by severity (critical, major, minor, suggestion)
-- Top 3 worst-offending files with brief descriptions
-
-### `score-only` Mode
-Analyze the target path with the **same thoroughness and detection depth as `full` mode** — scan all files, apply all detection rules, identify all violations. The difference is output only: return only the summary severity counts, no individual findings, no evidence, no fix prompts. This ensures that health scores match audit scores for the same codebase. Output the summary object only.
-
----
-
-## Summary Output
-
-At the end of every execution (regardless of mode), provide a summary:
-
-```json
-{
-  "skill": "codeprobe-patterns",
-  "summary": { "critical": 0, "major": 0, "minor": 0, "suggestion": 0 }
-}
-```
-
-Replace the zeros with actual counts from the analysis.

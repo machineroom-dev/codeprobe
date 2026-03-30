@@ -15,12 +15,6 @@ allowed-tools:
 
 # Framework-Specific Best Practices
 
-## READ-ONLY CONSTRAINT
-
-**This sub-skill is strictly read-only. Never modify, write, edit, or delete any file in the user's codebase. Report findings only.**
-
----
-
 ## Domain Scope
 
 This sub-skill detects framework-specific anti-patterns and convention violations. Unlike other sub-skills that apply universal principles, this one loads framework-specific reference guides and checks against framework idioms.
@@ -99,57 +93,9 @@ This sub-skill detects framework-specific anti-patterns and convention violation
 
 ---
 
-## Reference Loading
+## ID Prefix & Fix Prompt Examples
 
-This sub-skill relies heavily on reference files. Load the detected framework's reference from `../codeprobe/references/{file}.md` using Read. Available references include:
-
-- `php-laravel.md` for Laravel projects — Eloquent patterns, service container, facades
-- `react-nextjs.md` for React/Next.js projects — component patterns, hooks rules, rendering strategies
-- `javascript-typescript.md` for general JS/TS projects — module patterns, async pitfalls
-- `python.md` for Python/Django/FastAPI projects — PEP standards, ORM patterns
-
-**If no reference file is available for the detected framework, continue with the detection rules above only.** The reference files enrich but are not required.
-
----
-
-## Output Contract
-
-Every finding MUST include ALL of the following fields:
-
-```json
-{
-  "id": "FWK-{NNN}",
-  "severity": "critical|major|minor|suggestion",
-  "location": { "file": "path/to/file.ext", "lines": "45-120" },
-  "problem": "One sentence describing what's wrong",
-  "evidence": "Concrete proof from the code — quote specific patterns, counts, names",
-  "suggestion": "Human-readable recommendation",
-  "fix_prompt": "Copy-pasteable prompt for Claude Code to apply the fix. Must reference specific file names, line ranges, method names, and the exact change to make.",
-  "refactored_sketch": "// optional: minimal code showing the fix direction"
-}
-```
-
-### ID Prefix
-
-All findings use the `FWK-` prefix, numbered sequentially: `FWK-001`, `FWK-002`, `FWK-003`, etc.
-
-### Rendered Finding Format
-
-```
-### {ID} | {Severity} | `{file}:{lines}`
-
-**Problem:** {problem description}
-
-**Evidence:**
-> {quoted code patterns, specific variable names, line references, data flow description}
-
-**Suggestion:** {what to do to fix it}
-
-**Fix prompt:**
-> {copy-pasteable prompt for Claude Code}
-
-**Refactored sketch:** (optional)
-```
+All findings use the `FWK-` prefix, numbered sequentially: `FWK-001`, `FWK-002`, etc.
 
 ### Fix Prompt Examples
 
@@ -157,36 +103,3 @@ All findings use the `FWK-` prefix, numbered sequentially: `FWK-001`, `FWK-002`,
 - "Replace the `env('MAIL_HOST')` call at line 12 of `app/Services/MailService.php` with `config('mail.mailers.smtp.host')`. The `env()` function returns `null` when the config is cached. Move the env lookup to `config/mail.php` where it belongs."
 - "The `ProductList` component at `src/components/ProductList.tsx` (220 LOC) should be decomposed: extract `ProductCard` (lines 50-90), `ProductFilters` (lines 100-140), and `ProductPagination` (lines 160-200) into separate components in the same directory."
 - "Add missing dependency `userId` to the `useEffect` dependency array at `src/hooks/useProfile.ts:15`. The current empty array `[]` means the effect runs once with the initial `userId` and never refetches when it changes."
-
----
-
-## Execution Modes
-
-This sub-skill supports three modes, set by the orchestrator:
-
-### `full` Mode
-Analyze the target path thoroughly. Scan every source file for all framework-specific convention violations. Produce detailed findings for every detected issue with all required fields (id, severity, location, problem, evidence, suggestion, fix_prompt). Include refactored_sketch for major findings. Load framework reference files and cross-check against documented idioms.
-
-### `scan` Mode
-Quick count of violations by severity. Identify the worst offenders (files with the most framework anti-patterns). Skip the `evidence` and `fix_prompt` fields. Return:
-- Count of violations per framework section (PHP/Laravel, React/Next.js, Python/Django/FastAPI)
-- Count by severity (critical, major, minor, suggestion)
-- Top 3 most problematic files with brief descriptions
-
-### `score-only` Mode
-Analyze the target path with the **same thoroughness and detection depth as `full` mode** — scan all files, apply all detection rules, identify all violations. The difference is output only: return only the summary severity counts, no individual findings, no evidence, no fix prompts. This ensures that health scores match audit scores for the same codebase. Output the summary object only.
-
----
-
-## Summary Output
-
-At the end of every execution (regardless of mode), provide a summary:
-
-```json
-{
-  "skill": "codeprobe-framework",
-  "summary": { "critical": 0, "major": 0, "minor": 0, "suggestion": 0 }
-}
-```
-
-Replace the zeros with actual counts from the analysis.

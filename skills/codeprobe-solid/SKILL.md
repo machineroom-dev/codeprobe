@@ -14,12 +14,6 @@ allowed-tools:
 
 # SOLID Principles Auditor
 
-## READ-ONLY CONSTRAINT
-
-**This sub-skill is strictly read-only. Never modify, write, edit, or delete any file in the user's codebase. Report findings only.**
-
----
-
 ## Domain Scope
 
 This sub-skill detects violations of the five SOLID principles:
@@ -87,37 +81,7 @@ This sub-skill detects violations of the five SOLID principles:
 
 ---
 
-## Reference Loading
-
-If the project uses a specific framework or language, load the relevant reference file from `../codeprobe/references/{file}.md` using Read. Available references include:
-
-- `php-laravel.md` for PHP/Laravel projects
-- `javascript-typescript.md` for JS/TS projects
-- `python.md` for Python projects
-- `react-nextjs.md` for React/Next.js projects
-
-If the reference file is unavailable, continue the analysis without it.
-
----
-
-## Output Contract
-
-Every finding MUST include ALL of the following fields:
-
-```json
-{
-  "id": "{PREFIX}-{NNN}",
-  "severity": "critical|major|minor|suggestion",
-  "location": { "file": "path/to/file.ext", "lines": "45-120" },
-  "problem": "One sentence describing what's wrong",
-  "evidence": "Concrete proof from the code — quote specific patterns, counts, names",
-  "suggestion": "Human-readable recommendation",
-  "fix_prompt": "Copy-pasteable prompt for Claude Code to apply the fix. Must reference specific file names, line ranges, method names, and the exact change to make.",
-  "refactored_sketch": "// optional: minimal code showing the fix direction"
-}
-```
-
-### ID Prefixes
+## ID Prefixes & Fix Prompt Examples
 
 - `SRP-` — Single Responsibility Principle violations
 - `OCP-` — Open/Closed Principle violations
@@ -127,59 +91,8 @@ Every finding MUST include ALL of the following fields:
 
 Number findings sequentially within each prefix: `SRP-001`, `SRP-002`, `OCP-001`, etc.
 
-### Rendered Finding Format
-
-```
-### {ID} | {Severity} | `{file}:{lines}`
-
-**Problem:** {problem description}
-
-**Evidence:**
-> {quoted code patterns, method names, counts, specific line references}
-
-**Suggestion:** {what to do to fix it}
-
-**Fix prompt:**
-> {copy-pasteable prompt for Claude Code}
-
-**Refactored sketch:** (optional)
-```
-
 ### Fix Prompt Examples
 
 - "Refactor `src/OrderService.php`: extract payment logic (lines 45-78) into a new `PaymentService` class. Inject `PaymentService` via constructor into `OrderService`. Move methods `calculateTotal()`, `applyDiscount()`, and `processPayment()` to the new class."
 - "Replace the switch on `$type` in `NotificationSender` (lines 30-65) with a Strategy pattern: create a `NotificationChannel` interface with a `send(Message $message)` method. Create `EmailChannel`, `SmsChannel`, and `PushChannel` implementations. Use a `NotificationChannelFactory` to resolve the correct channel by type."
 - "In `UserRepository.php`, replace `new MySqlConnection()` at line 23 with constructor injection: add a `DatabaseConnectionInterface $connection` parameter to the constructor and use it instead of the concrete instantiation."
-
----
-
-## Execution Modes
-
-This sub-skill supports three modes, set by the orchestrator:
-
-### `full` Mode
-Analyze the target path thoroughly. Produce detailed findings for every detected violation with all required fields (id, severity, location, problem, evidence, suggestion, fix_prompt). Include refactored_sketch for major and critical findings where it adds clarity.
-
-### `scan` Mode
-Quick count of violations by severity. Identify the worst offenders (files/classes with the most violations). Skip the `evidence` and `fix_prompt` fields. Return:
-- Count of violations per principle (SRP, OCP, LSP, ISP, DIP)
-- Count by severity (critical, major, minor, suggestion)
-- Top 3 worst-offending files with brief descriptions
-
-### `score-only` Mode
-Analyze the target path with the **same thoroughness and detection depth as `full` mode** — scan all files, apply all detection rules, identify all violations. The difference is output only: return only the summary severity counts, no individual findings, no evidence, no fix prompts. This ensures that health scores match audit scores for the same codebase. Output the summary object only.
-
----
-
-## Summary Output
-
-At the end of every execution (regardless of mode), provide a summary:
-
-```json
-{
-  "skill": "codeprobe-solid",
-  "summary": { "critical": 0, "major": 0, "minor": 0, "suggestion": 0 }
-}
-```
-
-Replace the zeros with actual counts from the analysis.
