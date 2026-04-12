@@ -5,18 +5,19 @@
 </p>
 
 <p align="center">
-  <a href="#quick-start"><img src="https://img.shields.io/badge/install-one--command-f97316?style=flat-square" alt="Install"/></a>
+  <a href="#install"><img src="https://img.shields.io/badge/install-one--command-f97316?style=flat-square" alt="Install"/></a>
   <img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="License: MIT"/>
   <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey?style=flat-square" alt="Platform"/>
-  <img src="https://img.shields.io/badge/Claude%20Code-skill-7c3aed?style=flat-square" alt="Claude Code Skill"/>
+  <img src="https://img.shields.io/badge/agents-Claude%20Code%20%7C%20Cursor%20%7C%20Windsurf%20%7C%2045+-7c3aed?style=flat-square" alt="45+ Agents"/>
 </p>
 
-Senior-engineer code review for [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Run `/codeprobe audit .` and get a full health report in seconds.
+Senior-engineer code review as an [agent skill](https://skills.sh). Run `/codeprobe audit .` and get a full health report in seconds.
 
 - **9 review categories** -- security, SOLID, architecture, error handling, performance, test quality, code smells, design patterns, framework best practices
 - **Severity-scored findings** with file locations and copy-pasteable fix prompts
 - **Auto-detects your stack** -- Python, TypeScript, React/Next.js, PHP/Laravel, SQL, and more
 - **Strictly read-only** -- never modifies your code
+- **Works with 45+ agents** -- Claude Code, Cursor, Codex, Windsurf, Cline, and more
 
 ---
 
@@ -68,47 +69,32 @@ SEC-003 | Critical | src/auth/login.php:22-35
 
 ---
 
-## Quick Start
-
-### One-Command Install (macOS/Linux)
+## Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/nishilbhave/codeprobe-claude/main/install.sh | bash
+npx skills add nishilbhave/codeprobe-claude
 ```
 
-### Manual Install
+The installer will prompt you to select which agents to install to (Claude Code, Cursor, Windsurf, Codex, Cline, etc.) and whether to install globally or per-project.
 
-```bash
-git clone https://github.com/nishilbhave/codeprobe-claude.git
-cd codeprobe-claude
-./install.sh
-```
-
-### Windows (Git Bash)
-
-Requires [Git for Windows](https://gitforwindows.org/) which includes Git Bash.
-
-```bash
-# Option 1: One-command install (run from Git Bash, not PowerShell/CMD)
-curl -fsSL https://raw.githubusercontent.com/nishilbhave/codeprobe-claude/main/install-win.sh | bash
-
-# Option 2: Manual install
-git clone https://github.com/nishilbhave/codeprobe-claude.git
-cd codeprobe-claude
-./install-win.sh
-```
-
-> **Note:** Right-click the folder and select "Open Git Bash here", or open Git Bash and navigate to the directory. Do not use PowerShell or Command Prompt.
-
-### Requirements
-
-- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) CLI
-- Python 3.8+ (optional -- enables `/codeprobe health` statistics)
+**Optional:** Python 3.8+ enables `/codeprobe health` codebase statistics.
 
 Then in any project:
 
 ```
 /codeprobe audit .
+```
+
+To update:
+
+```bash
+npx skills update
+```
+
+To uninstall:
+
+```bash
+npx skills remove nishilbhave/codeprobe-claude
 ```
 
 ---
