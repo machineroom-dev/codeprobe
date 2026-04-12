@@ -162,6 +162,14 @@ def collect_files(root_dir: str) -> List[str]:
 
             full_path = os.path.join(dirpath, filename)
 
+            # Skip symlinks that escape the project root
+            real = os.path.realpath(full_path)
+            try:
+                if os.path.commonpath([real, root]) != root:
+                    continue
+            except ValueError:
+                continue
+
             # Skip binary files
             if is_binary(full_path):
                 continue
@@ -173,13 +181,30 @@ def collect_files(root_dir: str) -> List[str]:
     return sorted(files)
 
 
+MAX_FILE_SIZE: int = 5 * 1024 * 1024  # 5 MB
+
+
 def read_file_content(filepath: str) -> Optional[str]:
     """Read a file and return its text content, or None on failure."""
     try:
+        if os.path.getsize(filepath) > MAX_FILE_SIZE:
+            return None
         with open(filepath, "r", encoding="utf-8", errors="replace") as f:
             return f.read()
     except (OSError, IOError, PermissionError):
         return None
+
+
+def _is_within_root(path: str, root: str) -> bool:
+    """Check that a resolved path is within the root directory."""
+    # Use realpath to resolve symlinks, then check containment
+    real_path = os.path.realpath(path)
+    real_root = os.path.realpath(root)
+    # os.path.commonpath raises ValueError if paths are on different drives
+    try:
+        return os.path.commonpath([real_path, real_root]) == real_root
+    except ValueError:
+        return False
 
 
 def resolve_path(base_dir: str, candidate: str, extensions: List[str],
@@ -188,18 +213,19 @@ def resolve_path(base_dir: str, candidate: str, extensions: List[str],
 
     Tries the candidate as-is first, then appends each extension.
     Returns a root-relative path if found, otherwise None.
+    All resolved paths are validated to stay within the project root.
     """
     # Normalise to absolute
     abs_candidate = os.path.normpath(os.path.join(base_dir, candidate))
 
     # Try exact path first
-    if os.path.isfile(abs_candidate):
+    if os.path.isfile(abs_candidate) and _is_within_root(abs_candidate, root):
         return os.path.relpath(abs_candidate, root)
 
     # Try with extensions
     for ext in extensions:
         attempt = abs_candidate + ext
-        if os.path.isfile(attempt):
+        if os.path.isfile(attempt) and _is_within_root(attempt, root):
             return os.path.relpath(attempt, root)
 
     return None
@@ -465,7 +491,7 @@ def main() -> None:
         )
         sys.exit(1)
 
-    target_dir = sys.argv[1]
+    target_dir = os.path.realpath(sys.argv[1])
 
     if not os.path.isdir(target_dir):
         json.dump(

@@ -82,6 +82,13 @@ def collect_files(root_dir: str) -> List[str]:
             if ext not in RECOGNIZED_EXTENSIONS:
                 continue
             full_path = os.path.join(dirpath, filename)
+            # Skip symlinks that escape the project root
+            real = os.path.realpath(full_path)
+            try:
+                if os.path.commonpath([real, root]) != root:
+                    continue
+            except ValueError:
+                continue
             if is_binary(full_path):
                 continue
             files.append(os.path.relpath(full_path, root))
@@ -215,9 +222,14 @@ def _rate_complexity(complexity: int) -> str:
     return "very_high"
 
 
+MAX_FILE_SIZE: int = 5 * 1024 * 1024  # 5 MB
+
+
 def analyze_file(filepath: str, ext: str) -> Optional[List[Dict[str, Any]]]:
     """Analyze a single source file and return per-function complexity data."""
     try:
+        if os.path.getsize(filepath) > MAX_FILE_SIZE:
+            return None
         with open(filepath, "r", encoding="utf-8", errors="replace") as f:
             lines = f.readlines()
     except (PermissionError, OSError, IOError):
@@ -279,7 +291,7 @@ def main() -> None:
         )
         sys.exit(1)
 
-    target_dir = sys.argv[1]
+    target_dir = os.path.realpath(sys.argv[1])
     if not os.path.isdir(target_dir):
         json.dump(
             {"error": f"Directory not found: {target_dir}"},

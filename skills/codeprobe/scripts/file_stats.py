@@ -138,9 +138,14 @@ def count_methods(line: str) -> int:
     return 0
 
 
+MAX_FILE_SIZE: int = 5 * 1024 * 1024  # 5 MB
+
+
 def analyze_file(filepath: str) -> Optional[Dict[str, Any]]:
     """Analyze a single source file and return its statistics."""
     try:
+        if os.path.getsize(filepath) > MAX_FILE_SIZE:
+            return None
         with open(filepath, "r", encoding="utf-8", errors="replace") as f:
             lines = f.readlines()
     except PermissionError:
@@ -195,6 +200,14 @@ def collect_files(root_dir: str) -> List[str]:
                 continue
 
             full_path = os.path.join(dirpath, filename)
+
+            # Skip symlinks that escape the project root
+            real = os.path.realpath(full_path)
+            try:
+                if os.path.commonpath([real, root]) != root:
+                    continue
+            except ValueError:
+                continue
 
             # Skip binary files
             if is_binary(full_path):
@@ -276,7 +289,7 @@ def main() -> None:
         )
         sys.exit(1)
 
-    target_dir = sys.argv[1]
+    target_dir = os.path.realpath(sys.argv[1])
 
     if not os.path.isdir(target_dir):
         json.dump(

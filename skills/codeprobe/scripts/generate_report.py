@@ -286,10 +286,15 @@ def validate_output_path(output_path: str, data: Dict[str, Any]) -> None:
         return
     resolved_output = os.path.realpath(output_path)
     resolved_project = os.path.realpath(project_path)
-    if resolved_output.startswith(resolved_project + os.sep):
-        error_exit(
-            f"Output path is inside the project directory: {output_path}"
-        )
+    try:
+        common = os.path.commonpath([resolved_output, resolved_project])
+        if common == resolved_project:
+            error_exit(
+                f"Output path is inside the project directory: {output_path}"
+            )
+    except ValueError:
+        # Different drives on Windows -- no overlap, safe to proceed
+        pass
 
 
 def main() -> None:
@@ -300,12 +305,17 @@ def main() -> None:
     parser.add_argument("--output", required=True, help="Path for the output report")
     args = parser.parse_args()
 
+    MAX_INPUT_SIZE: int = 50 * 1024 * 1024  # 50 MB
+
     # Read input JSON
-    if not os.path.isfile(args.input):
+    input_path = os.path.realpath(args.input)
+    if not os.path.isfile(input_path):
         error_exit(f"Input file not found: {args.input}")
 
     try:
-        with open(args.input, "r", encoding="utf-8") as f:
+        if os.path.getsize(input_path) > MAX_INPUT_SIZE:
+            error_exit(f"Input file exceeds {MAX_INPUT_SIZE // (1024*1024)} MB limit")
+        with open(input_path, "r", encoding="utf-8") as f:
             data = json.load(f)
     except json.JSONDecodeError as e:
         error_exit(f"Invalid JSON in input file: {e}")
