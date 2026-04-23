@@ -1,25 +1,60 @@
 <!--
-  Template for /codeprobe audit output (v2.1 — tiered format).
+  Template for /codeprobe audit output (v2.2 — dashboard + tiered findings).
   The orchestrator reads this template and fills {placeholders} with actual data.
   Render as markdown in the user's terminal.
 
-  Tiered output rules:
-    - Critical findings: Full detail (evidence + fix prompt)
-    - Major findings: One-liner table row (ID, file, problem, fix prompt)
-    - Minor findings: Count per category only
-    - Suggestions: Count per category only
-    - Always end with prioritized fix order
+  Structure:
+    1. Dashboard (scores, codebase stats, hot spots)
+    2. Tiered findings:
+       - Critical: Full detail (evidence + fix prompt)
+       - Major: One-liner table row (ID, file, problem, fix prompt)
+       - Minor: Count per category only
+       - Suggestions: Count per category only
+    3. Prioritized fix order
 -->
 
-# Code Review Audit Report
+# Code Health Report — {project_name}
 
-## Project: {project_name}
-## Date: {date}
-## Detected Stack: {detected_stacks}
+**Overall Health:** {overall_score}/100 {status_emoji} {status_label}
+
+**Category Scores:**
+
+```
+  Architecture    {bar} {score}/100 {status}
+  Security        {bar} {score}/100 {status}
+  Framework       {bar} {score}/100 {status}
+  Performance     {bar} {score}/100 {status}
+  SOLID           {bar} {score}/100 {status}
+  Design Patterns {bar} {score}/100 {status}
+  Code Smells     {bar} {score}/100 {status}
+  Test Quality    {bar} {score}/100 {status}
+  Error Handling  {bar} {score}/100 {status}
+```
+
+<!-- bar = 10-char block-character bar proportional to score; status = Healthy (80+) / Needs Attention (60-79) / Critical (0-59) -->
+
+**Codebase Stats:** <!-- from scripts/file_stats.py; omit this block if Python 3 unavailable and emit the one-line note below -->
+
+```
+  Files: {n}              | Total LOC: {loc}
+  Backend: {n} ({loc} LOC) | Frontend: {n} ({loc} LOC)
+  Largest file: {file} ({loc} LOC)
+  Test files: {n} / {total} ({pct}%)
+  Comment ratio: {pct}%
+```
+
+<!-- If Python 3 unavailable, replace the block above with: "_Install Python 3 for codebase statistics._" -->
+
+**Hot Spots** (files needing most attention):
+
+1. `{file}` — {n} categories flagged ({cat_list})
+2. `{file}` — {n} categories flagged ({cat_list})
+3. `{file}` — {n} categories flagged ({cat_list})
 
 ---
 
-### Overall Score: {overall_score} / 100
+## Date: {date}
+## Detected Stack: {detected_stacks}
 
 ### Score Breakdown
 

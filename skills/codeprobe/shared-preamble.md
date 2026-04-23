@@ -49,9 +49,6 @@ Analyze the target path thoroughly. Produce detailed findings for every detected
 ### `scan` Mode
 Quick count of issues by severity. Identify the worst offenders. Skip `evidence` and `fix_prompt` fields. Return counts per category, counts by severity, and top 3 worst-offending files.
 
-### `score-only` Mode
-Analyze with the **same thoroughness and detection depth as `full` mode** — scan all files, apply all detection rules, identify all violations. The difference is output only: return only the summary severity counts. No individual findings, no evidence, no fix prompts. This ensures health scores match audit scores.
-
 ---
 
 ## Summary Output

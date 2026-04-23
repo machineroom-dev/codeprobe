@@ -8,7 +8,7 @@ description: >
   Use when user says "review", "audit", "code review", "check my code",
   "security scan", "code smells", "SOLID check".
 user-invokable: true
-argument-hint: "[audit|solid|security|smells|architecture|patterns|performance|errors|tests|framework|quick|health] <path>"
+argument-hint: "[audit|solid|security|smells|architecture|patterns|performance|errors|tests|framework|quick] <path>"
 allowed-tools:
   - Read
   - Grep
@@ -41,7 +41,7 @@ Parse the user's input to extract a subcommand and target path. The input format
 
 | Command | Behavior | Sub-skills Invoked |
 |---------|----------|-------------------|
-| `/codeprobe audit <path>` | Full audit — run all available sub-skills sequentially, aggregate all findings | All available sub-skills |
+| `/codeprobe audit <path>` | Full audit — visual health dashboard (category scores, codebase stats, hot spots) followed by detailed P0-P3 findings with fix prompts | All available sub-skills + `file_stats.py` |
 | `/codeprobe solid <path>` | SOLID principles analysis only | `codeprobe-solid` |
 | `/codeprobe security <path>` | Security audit only | `codeprobe-security` |
 | `/codeprobe smells <path>` | Code smells detection only | `codeprobe-code-smells` |
@@ -52,7 +52,6 @@ Parse the user's input to extract a subcommand and target path. The input format
 | `/codeprobe tests <path>` | Test quality audit only | `codeprobe-testing` |
 | `/codeprobe framework <path>` | Framework best practices only | `codeprobe-framework` |
 | `/codeprobe quick <path>` | Top 5 issues — run all sub-skills in scan mode, then generate full detail for top 5 | All available |
-| `/codeprobe health <path>` | Codebase vitals dashboard — scores + stats, no individual findings | All available + `file_stats.py` |
 | `/codeprobe diff [branch]` | PR-style review on changed files vs branch (default: `main`) | All relevant (Phase 3) |
 | `/codeprobe report` | Generate report from last audit | `scripts/generate_report.py` (Phase 3) |
 
@@ -60,7 +59,7 @@ Parse the user's input to extract a subcommand and target path. The input format
 
 - **No subcommand given**: Ask the user what they want. Present the available commands.
 - **No path given**: Use the current working directory.
-- **Phase 3 stubs**: If the user invokes `diff` or `report`, respond: "This feature is coming in Phase 3. Available now: audit, solid, security, smells, architecture, patterns, performance, errors, tests, framework, quick, health."
+- **Phase 3 stubs**: If the user invokes `diff` or `report`, respond: "This feature is coming in Phase 3. Available now: audit, solid, security, smells, architecture, patterns, performance, errors, tests, framework, quick."
 
 ---
 
@@ -153,7 +152,7 @@ For each sub-skill to run, spawn an Agent with a prompt that includes:
 
 1. **The shared preamble** (from `shared-preamble.md`) — output contract, modes, constraints.
 2. **The sub-skill name** to invoke (e.g., `codeprobe-security`).
-3. **The mode** — one of `full`, `scan`, or `score-only`.
+3. **The mode** — one of `full` or `scan`.
 4. **Pre-loaded source files** — the full content of every source file, formatted as:
    ```
    === FILE: {filepath} ===
@@ -174,13 +173,11 @@ The sub-skill's own SKILL.md contains only its domain-specific detection logic. 
 |------|---------|----------|
 | `full` | `/codeprobe audit`, `/codeprobe solid`, etc. | Run complete analysis, return all findings |
 | `scan` | `/codeprobe quick` | Count violations, identify top issues, return only counts + top 5 candidates |
-| `score-only` | `/codeprobe health` | Run full-depth analysis (same thoroughness as `full` mode) but return only category severity counts — no individual findings, no evidence, no fix prompts in the output |
 
 ### Execution Order
 
-- **`/codeprobe audit`**: Run sub-skills sequentially in this order: `codeprobe-security`, `codeprobe-error-handling`, `codeprobe-solid`, `codeprobe-architecture`, `codeprobe-patterns`, `codeprobe-performance`, `codeprobe-code-smells`, `codeprobe-testing`, `codeprobe-framework`. Collect all findings.
+- **`/codeprobe audit`**: Run sub-skills sequentially in this order: `codeprobe-security`, `codeprobe-error-handling`, `codeprobe-solid`, `codeprobe-architecture`, `codeprobe-patterns`, `codeprobe-performance`, `codeprobe-code-smells`, `codeprobe-testing`, `codeprobe-framework` — all in `full` mode. Collect all findings. Apply deduplication (Section 7A). Derive category scores from severity counts. Compute hot spots by aggregating findings per file and ranking by distinct-categories-flagged. Also run `scripts/file_stats.py` for codebase stats (skip gracefully if Python 3 unavailable).
 - **`/codeprobe quick`**: Run all 9 sub-skills in `scan` mode. Collect candidate issues from all. Rank by severity (critical > major > minor > suggestion), then select top 5. Re-run relevant sub-skills in `full` mode for just those 5 findings to get complete detail.
-- **`/codeprobe health`**: Run all 9 sub-skills in `score-only` mode (which uses full-depth analysis internally, suppressing only the output detail). Apply deduplication (Section 7A). Also run `file_stats.py` if Python 3 is available. Render the health dashboard.
 
 ### Available Sub-Skills
 
@@ -354,19 +351,28 @@ Render the final output based on the command used.
 
 ### `/codeprobe audit` — Full Audit Report
 
-Use the template at `templates/full-audit-report.md` (loaded via Read). The template uses a **tiered output format** to control token usage:
+Use the template at `templates/full-audit-report.md` (loaded via Read). The template opens with a **visual health dashboard** (category scores, codebase stats, hot spots) and then uses a **tiered output format** for findings to control token usage. Render order:
 
-1. **Header**: Project name, date, overall score, score breakdown by category, deduplication summary.
-2. **Executive Summary**: 2-3 sentences covering the most important findings.
-3. **Critical findings — Full detail**: Each critical finding rendered with evidence, suggestion, and fix prompt. These are the most important and justify the token cost.
-4. **Major findings — Summary table**: One row per major finding with ID, file, problem, and fix prompt. No evidence block (saves ~200 tokens per finding).
-5. **Minor findings — Counts only**: Aggregated count per category. No individual findings listed.
-6. **Suggestions — Counts only**: Aggregated count per category. No individual findings listed.
-7. **Prioritized Fix Order**: Ordered list of all critical and major fix prompts, ranked by impact.
+1. **Dashboard header**: `Code Health Report — {project}` title line and `Overall Health: {score}/100 {status_emoji}` where status is derived from the thresholds in the "Status thresholds" block below.
+2. **Category score bars**: a 10-character block-character bar proportional to the score for each of the 9 categories (Architecture, Security, Framework, Performance, SOLID, Design Patterns, Code Smells, Test Quality, Error Handling), followed by `{score}/100 {status}`.
+3. **Codebase Stats**: output of `scripts/file_stats.py` (total files, LOC, backend/frontend split, largest file, test file ratio, comment ratio). If Python 3 is unavailable, omit this block and note: "Install Python 3 for codebase statistics."
+4. **Hot Spots**: top 3 files by distinct-categories-flagged (computed from the same findings that feed the scores).
+5. Horizontal rule.
+6. **Executive Summary**: 2-3 sentences covering the most important findings.
+7. **Critical findings — Full detail**: Each critical finding rendered with evidence, suggestion, and fix prompt. These are the most important and justify the token cost.
+8. **Major findings — Summary table**: One row per major finding with ID, file, problem, and fix prompt. No evidence block (saves ~200 tokens per finding).
+9. **Minor findings — Counts only**: Aggregated count per category. No individual findings listed.
+10. **Suggestions — Counts only**: Aggregated count per category. No individual findings listed.
+11. **Prioritized Fix Order**: Ordered list of all critical and major fix prompts, ranked by impact.
 
-If the template does not exist, render inline following the same tiered structure.
+If the template does not exist, render inline following the same structure.
 
-**Token budget guidance:** For a codebase with ~100 findings, this tiered format targets ~8,000-12,000 tokens for the report (vs ~40,000 with full detail for all findings). The user can drill into specific categories with `/codeprobe security .` etc. for full detail on any category.
+Status thresholds (applied to overall health and each category score):
+- 80-100 = "Healthy"
+- 60-79 = "Needs Attention"
+- 0-59 = "Critical"
+
+**Token budget guidance:** For a codebase with ~100 findings, the tiered findings format (steps 7-10) targets ~8,000-12,000 tokens (vs ~40,000 with full detail for all findings). The dashboard adds a small fixed cost (~400 tokens). The user can drill into specific categories with `/codeprobe security .` etc. for full detail on any category.
 
 ### `/codeprobe quick` — Quick Review Summary
 
@@ -377,52 +383,6 @@ Use the template at `templates/quick-review-summary.md` (loaded via Read). If th
 3. **Summary Counts**: Total issues found by severity across all categories.
 4. **Next Step**: Suggest running `/codeprobe audit` for the complete picture.
 
-### `/codeprobe health` — Health Dashboard
-
-Render the dashboard inline in this format:
-
-```
-Code Health Report — {project_name}
-
-Overall Health: {score}/100 {status_emoji}
-
-Category Scores:
-  Security        {bar}  {score}/100  {status}
-  SOLID           {bar}  {score}/100  {status}
-  Architecture    {bar}  {score}/100  {status}
-  Error Handling  {bar}  {score}/100  {status}
-  Performance     {bar}  {score}/100  {status}
-  Test Quality    {bar}  {score}/100  {status}
-  Code Smells     {bar}  {score}/100  {status}
-  Design Patterns {bar}  {score}/100  {status}
-  Framework       {bar}  {score}/100  {status}
-
-Codebase Stats: (from file_stats.py)
-  Files: {n}  |  Total LOC: {n}
-  Largest file: {file} ({loc} LOC)
-  Test files: {n} / {total} ({pct}%)
-  Comment ratio: {pct}%
-  Avg method length: {n} LOC
-
-Hot Spots (files needing most attention):
-  1. {file} — {n} categories flagged
-  2. {file} — {n} categories flagged
-  3. {file} — {n} categories flagged
-
-Run `/codeprobe audit` for detailed findings and fix prompts.
-```
-
-The bar is a visual indicator using block characters, proportional to the score (e.g., 10 characters wide).
-
-Status thresholds:
-- 80-100 = "Healthy"
-- 60-79 = "Needs Attention"
-- 0-59 = "Critical"
-
-If `file_stats.py` is unavailable or Python 3 is not installed, omit the "Codebase Stats" section and note: "Install Python 3 for codebase statistics."
-
----
-
 ## 9. Claude.ai Degraded Mode
 
 Detect whether filesystem access is available. If the user has pasted or uploaded code rather than providing a file path, or if Read/Glob/Grep tools are unavailable:
@@ -430,7 +390,7 @@ Detect whether filesystem access is available. If the user has pasted or uploade
 1. **Switch to degraded mode**: Analyze only the in-context code provided.
 2. **Execute sub-skills sequentially** on the pasted code (no parallel agents).
 3. **Skip** `file_stats.py` and all script-dependent steps.
-4. **Skip** `/codeprobe diff`, `/codeprobe health` stats section, and `/codeprobe report`.
+4. **Skip** `/codeprobe diff`, `/codeprobe report`, and the Codebase Stats row of the audit dashboard (still render scores, hot spots, and findings).
 5. **Inform the user**: "Running in Claude.ai mode — some features like codebase statistics, diff review, and multi-file analysis are unavailable. Analyzing the provided code directly."
 6. Still produce findings in the standard output contract format.
 7. Still compute scores based on findings from available sub-skills.
@@ -454,7 +414,6 @@ When the user invokes a command that routes to an unbuilt feature, respond with:
 > - `/codeprobe tests <path>` — Test quality audit
 > - `/codeprobe framework <path>` — Framework best practices
 > - `/codeprobe quick <path>` — Top 5 issues
-> - `/codeprobe health <path>` — Codebase vitals dashboard
 
 This applies to: `diff`, `report`.
 
