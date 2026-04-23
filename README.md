@@ -75,7 +75,15 @@ SEC-003 | Critical | src/auth/login.php:22-35
 npx skills add nishilbhave/codeprobe-claude
 ```
 
-The installer will prompt you to pick skills (select all 10 with `*`), target agents (Claude Code, Cursor, Windsurf, Codex, Cline, etc.), and scope (global or per-project). To skip prompts and install everything:
+The installer will prompt you to pick skills (press `a` to select all), target agents (Claude Code, Cursor, Windsurf, Codex, Cline, etc.), and scope (global or per-project).
+
+Skip the prompts — install all 10 skills to Claude Code only:
+
+```bash
+npx skills add nishilbhave/codeprobe-claude --skill '*' -a claude-code -y
+```
+
+Or install every skill to every supported agent (45+):
 
 ```bash
 npx skills add nishilbhave/codeprobe-claude --all
@@ -92,8 +100,9 @@ Then in any project:
 To update:
 
 ```bash
-npx skills update          # project scope (from inside a project)
-npx skills update -g       # global scope
+npx skills update -y       # auto-detect scope, skip prompts
+npx skills update -g -y    # update global installs
+npx skills update -p -y    # update project installs only
 ```
 
 To uninstall:
