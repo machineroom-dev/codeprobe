@@ -65,6 +65,35 @@ Then run `/codeprobe audit .` in any project.
 
 If no path is given, the current working directory is used.
 
+### Running on a specific path
+
+The `<path>` argument works the same way for every command above. It can be a directory *or* a single file, and can be relative or absolute.
+
+```bash
+# Current directory (same as passing no path)
+/codeprobe audit .
+
+# A subdirectory
+/codeprobe audit ./src/backend
+
+# An absolute path
+/codeprobe audit /Users/me/projects/myapp
+
+# A single file
+/codeprobe audit ./src/api/auth.ts
+
+# Scope a single category to a subfolder
+/codeprobe security ./src/api
+/codeprobe solid    ./backend/services
+/codeprobe quick    ./src/checkout
+```
+
+**Notes on paths:**
+
+- Relative paths are resolved against the directory Claude Code was started in.
+- Only files inside the given path are analyzed — everything else is ignored.
+- The report is always saved to `./codeprobe-reports/<timestamp>.md` in your **current working directory**, regardless of which path you scanned. `cd` into the project first if you want the report to land there.
+
 ---
 
 ## How It Works
