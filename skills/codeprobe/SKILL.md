@@ -18,7 +18,7 @@ allowed-tools:
   - Write
 metadata:
   author: Nishil
-  version: "2.0.0"
+  version: "2.0.1"
 ---
 
 # Code Review Orchestrator
