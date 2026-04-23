@@ -364,7 +364,7 @@ Use the template at `templates/full-audit-report.md` (loaded via Read) to assemb
 
 | Surface | What it shows | How it's produced |
 |---------|---------------|-------------------|
-| **Terminal** | Colored dashboard + executive summary + critical findings (full detail) + prioritized fix order (top 5) + "Report saved" line | ANSI script + streamed markdown sections |
+| **Terminal** | Dashboard + executive summary + critical findings (full detail) + prioritized fix order (top 5) + "Report saved" line | Streamed markdown sections in the assistant response |
 | **Saved file** (`./codeprobe-reports/<ts>.md`) | Everything: dashboard, exec summary, all critical/major findings, minor/suggestion counts, full prioritized fix order | Plain markdown written via `Write` tool |
 
 The terminal must never be empty or reduced to just a save confirmation. If Claude only emitted the save line in a past run, that was a bug in how these instructions were followed — fix it by executing the flow below in order.
@@ -376,18 +376,17 @@ The terminal must never be empty or reduced to just a save confirmation. If Clau
   2. Derive category scores, overall score, hot spots, codebase stats.
   3. Assemble an in-memory "report bundle": `{dashboard_data, exec_summary, critical[], major[], minor_counts[], suggestion_counts[], fix_order[]}`.
 
-**B. Render to terminal** (user-facing — emit these as the assistant response, in order)
+**B. Render to terminal** (user-facing — emit these **directly as markdown in the assistant response**, in order)
 
-  1. **Colored dashboard (ANSI)** — **Always** invoke `scripts/render_dashboard.py` first via the Bash tool, piping a JSON payload (shape: `project_name`, `overall_score`, `categories`, `stats`, `hot_spots`, `command_label`) on stdin. Prepend `FORCE_COLOR=1` so bars render in color even though the Bash tool captures stdout (no TTY):
-     ```
-     printf '%s' '<json>' | FORCE_COLOR=1 python3 skills/codeprobe/scripts/render_dashboard.py
-     ```
-     The script honors `NO_COLOR=1` (user opt-out wins), `FORCE_COLOR`/`CLAUDECODE` (opt-in bypasses the TTY check), and auto-detects truecolor vs 256-color. Its stdout goes straight to the user's terminal with ANSI preserved. Only fall back to B.2 if the Bash call returns a non-zero exit code (e.g., `python3` not on PATH, script missing). Do not skip B.1 preemptively.
-  2. **Markdown dashboard (fallback only)** — use only when B.1 failed. Emits: title line, `Overall Health: {score}/100 [{status_label}]`, the 9-row category bar block (10-char Unicode bars), codebase stats block, hot spots list. Status labels in brackets, no emoji. Palette-less but structurally identical to B.1.
-  3. **Executive Summary** — 2-3 sentences covering the most important findings.
-  4. **Critical findings — full detail** — for each critical finding: ID, location, problem, evidence, suggestion, fix prompt. This is the highest-signal section; always show in the terminal.
-  5. **Prioritized Fix Order (top 5)** — the first 5 entries from the full prioritized fix order. Reference the saved file for the complete list.
-  6. **Save confirmation line** — `--> Report saved to ./codeprobe-reports/{filename}` (no emoji; ASCII arrow). This is the LAST line in the terminal output.
+  Do NOT pipe the dashboard through the Bash tool. The Bash tool collapses its output by default in Claude Code's UI (`+N lines (ctrl+r to expand)`), which hides the dashboard behind a fold. Emit the dashboard as ordinary assistant-response markdown so the user sees it immediately. Modern terminals (Ghostty, iTerm2, etc.) will apply their own markdown styling — bold, inline-code highlighting, emphasis — which is the only coloring available on this path. If no coloring shows, plain text is fine; do not try to force ANSI escapes into the response.
+
+  (`scripts/render_dashboard.py` exists for users running the audit directly from their own shell outside Claude Code, where its stdout is a real TTY. Do NOT invoke it from within the `/codeprobe audit` flow.)
+
+  1. **Dashboard (markdown)** — emit the dashboard block inline. Include: title line (`## Code Health Report — {project}`), `**Overall Health:** {score}/100 [{status_label}]`, the 9-row category bar block (10-char Unicode bars `█`/`░`) with `{name} {bar} {score}/100 [{status_label}]`, codebase stats block (files, LOC, backend/frontend split, largest file, test ratio, comment ratio), and a hot-spots list (up to 3 entries). Status labels in brackets, no emoji.
+  2. **Executive Summary** — 2-3 sentences covering the most important findings.
+  3. **Critical findings — full detail** — for each critical finding: ID, location, problem, evidence, suggestion, fix prompt. This is the highest-signal section; always show in the terminal.
+  4. **Prioritized Fix Order (top 5)** — the first 5 entries from the full prioritized fix order. Reference the saved file for the complete list.
+  5. **Save confirmation line** — `--> Report saved to ./codeprobe-reports/{filename}` (no emoji; ASCII arrow). This is the LAST line in the terminal output.
 
   Do NOT also stream the major-findings table, minor/suggestion counts, or the full fix order to the terminal — those would duplicate content that the saved file already carries and bloat the terminal output. The user can open the saved file for the complete picture.
 

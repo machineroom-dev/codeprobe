@@ -5,10 +5,12 @@
   Rendering surfaces (see SKILL.md Section 8 for the full flow):
     - Saved report file (./codeprobe-reports/<ts>.md) uses this template as-is —
       plain markdown, diff-friendly, no ANSI.
-    - Terminal: the dashboard block below is ALSO rendered via
-      scripts/render_dashboard.py with ANSI color matching assets/sample-output.svg.
-      When Python 3 is unavailable, the terminal falls back to streaming this
-      markdown template directly (legacy path).
+    - Terminal: the dashboard block below is emitted directly in the assistant
+      response as markdown. Modern terminals apply their own markdown styling
+      (bold / emphasis) — that's the only coloring on this path. The dashboard
+      is NOT piped through scripts/render_dashboard.py during the audit flow,
+      because the Bash tool collapses its output by default and would hide the
+      dashboard. The script still exists for direct CLI use outside Claude Code.
 
   Structure:
     1. Dashboard (scores, codebase stats, hot spots)
