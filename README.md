@@ -23,32 +23,11 @@ Senior-engineer code review as an [agent skill](https://skills.sh). Run `/codepr
 
 ## Sample Output
 
-Every `/codeprobe audit` opens with a visual **health dashboard** — category scores, codebase stats, and hot-spot files — then lists detailed P0-P3 findings with fix prompts, and saves the whole report to `./codeprobe-reports/<timestamp>.md`.
+Every `/codeprobe audit` opens with a visual **health dashboard** (category scores, codebase stats, hot-spot files), then lists detailed P0-P3 findings with fix prompts, and saves the whole report to `./codeprobe-reports/<timestamp>.md`.
 
 <p align="center">
-  <img src="assets/sample-output.svg" alt="Sample /codeprobe audit output: dashboard with category scores, codebase stats, and hot spots" width="900"/>
+  <img src="assets/sample-output.svg" alt="Sample /codeprobe audit output: health dashboard with category scores, codebase stats, hot spots, and a critical and two major findings with fix prompts" width="900"/>
 </p>
-
-Below the dashboard, each finding includes an ID, severity, file location, evidence, and a fix prompt you can run directly in Claude Code:
-
-```
-[CRITICAL]  SEC-003  ·  src/auth/login.php:22-35
-
-  Problem:  SQL query built with string concatenation using unsanitized user input.
-  Evidence: Line 25: $query = "SELECT * FROM users WHERE email = '" . $_POST['email'] . "'";
-  Fix:      Refactor src/auth/login.php lines 22-35 to use PDO prepared statements
-            instead of string concatenation for the SQL query.
-
-[MAJOR]     ARCH-011  ·  backend/app/routers/agents.py:45-210
-  God router — handles auth, validation, business logic, and persistence in one file.
-  -> Extract business logic into an AgentService; keep router thin (validation + delegation).
-
-[MAJOR]     ERR-004   ·  frontend/app/growth-engine/ads/page.tsx:88
-  Promise rejection swallowed in `await fetchAds().catch(() => [])`.
-  -> Log the error and rethrow, or surface it via an error boundary.
-
---> Report saved to ./codeprobe-reports/2026-04-23-120145.md
-```
 
 ---
 
