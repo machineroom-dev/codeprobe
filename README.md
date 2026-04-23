@@ -79,7 +79,7 @@ Then run `/codeprobe audit .` in any project.
 
 **Manage:** `npx skills update` • `npx skills remove`
 
-**Optional:** Python 3.8+ enables `/codeprobe health` codebase statistics.
+**Optional:** Python 3.8+ enables codebase statistics in the `/codeprobe audit` dashboard.
 
 ---
 
@@ -87,8 +87,7 @@ Then run `/codeprobe audit .` in any project.
 
 | Command | Description |
 |---------|-------------|
-| `/codeprobe audit <path>` | Full audit -- all 9 categories, detailed findings, refactoring roadmap |
-| `/codeprobe health <path>` | Codebase vitals dashboard -- scores, file statistics, hot spots |
+| `/codeprobe audit <path>` | Full audit -- health dashboard (scores, file statistics, hot spots) plus detailed findings with fix prompts |
 | `/codeprobe quick <path>` | Top 5 most impactful issues with fix prompts |
 | `/codeprobe security <path>` | Security vulnerability detection |
 | `/codeprobe solid <path>` | SOLID principles analysis |

@@ -183,14 +183,13 @@
     <text x="860" y="144">/codeprobe architecture &lt;path&gt;</text>
     <text x="860" y="168">/codeprobe performance &lt;path&gt;</text>
     <text x="860" y="192">/codeprobe tests &lt;path&gt;</text>
-    <text x="860" y="216">/codeprobe health &lt;path&gt;</text>
-    <text x="860" y="240">/codeprobe quick &lt;path&gt;</text>
+    <text x="860" y="216">/codeprobe quick &lt;path&gt;</text>
   </g>
 
   <!-- Stats bar -->
   <rect x="0" y="318" width="900" height="22" rx="0" fill="#1e293b"/>
   <rect x="0" y="318" width="900" height="1" fill="#f97316" opacity="0.3"/>
   <text x="450" y="334" font-family="'SF Mono', 'Fira Code', Menlo, monospace" font-size="11" fill="#94a3b8" text-anchor="middle" letter-spacing="1">
-    9 categories  ·  12 commands  ·  6 stack guides  ·  auto-detect
+    9 categories  ·  11 commands  ·  6 stack guides  ·  auto-detect
   </text>
 </svg>

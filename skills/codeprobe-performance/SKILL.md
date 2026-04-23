@@ -114,7 +114,7 @@ This sub-skill detects performance and scalability issues across these categorie
 
 ### Optional Script Integration
 
-When `scripts/complexity_scorer.py` output is available (run by the orchestrator during `/codeprobe health` or `/codeprobe audit`), use it to identify high-complexity functions as performance hot-spot candidates. Functions rated "high" or "very_high" that also appear in hot paths (request handlers, loop bodies, frequently-called utilities) are strong signals for algorithmic efficiency findings.
+When `scripts/complexity_scorer.py` output is available (run by the orchestrator during `/codeprobe audit`), use it to identify high-complexity functions as performance hot-spot candidates. Functions rated "high" or "very_high" that also appear in hot paths (request handlers, loop bodies, frequently-called utilities) are strong signals for algorithmic efficiency findings.
 
 ---
 
