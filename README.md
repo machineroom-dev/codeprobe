@@ -81,6 +81,8 @@ Then run `/codeprobe audit .` in any project.
 
 **Optional:** Python 3.8+ enables codebase statistics in the `/codeprobe audit` dashboard.
 
+**Reports are saved** to `./codeprobe-reports/<timestamp>.md` in your current directory. Add `codeprobe-reports/` to your `.gitignore` to keep them out of source control.
+
 ---
 
 ## Commands

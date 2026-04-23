@@ -59,7 +59,19 @@ This sub-skill detects architectural and structural issues across these categori
 
 | ID Prefix | What to Detect | How to Detect | Severity |
 |-----------|---------------|---------------|----------|
-| `ARCH` | Module A imports B, B imports A (direct or transitive) | Trace import/require/use statements across files. Build a dependency graph for modules/directories. Look for: (1) direct cycles — file A imports file B, file B imports file A, (2) transitive cycles — A imports B, B imports C, C imports A. Focus on module-level (directory-level) cycles which are more architecturally significant than file-level cycles within the same module. Report the specific import chain. | Major |
+| `ARCH` | Module A imports B, B imports A (direct or transitive) | Prefer the pre-loaded dependency graph (see "Dependency Graph" subsection below). When present, the graph includes a `circular_dependencies` array with each cycle's full file-path chain — report one `ARCH` finding per cycle with that chain as evidence. When the graph is absent (degraded mode), fall back to tracing import/require/use statements across files and looking for direct cycles (A→B→A) and transitive cycles (A→B→C→A). Focus on module-level (directory-level) cycles which are more architecturally significant than file-level cycles within the same module. | Major |
+
+### Dependency Graph (pre-loaded)
+
+When invoked via `/codeprobe audit` or `/codeprobe architecture`, the orchestrator pre-computes the import graph by running `scripts/dependency_mapper.py` and provides the JSON in-context between `=== DEPENDENCY_GRAPH ===` and `=== END DEPENDENCY_GRAPH ===` markers. The JSON schema:
+
+- `graph`: `{file_path: [files it imports]}` — the full dependency graph.
+- `circular_dependencies`: list of cycle objects, each with the full file-path chain (e.g., `["a.py", "b.py", "c.py", "a.py"]`).
+- `summary`: `{total_files, total_cycles, most_imported, most_dependencies}` — aggregate stats.
+
+**When the graph is present**, treat it as ground truth: every cycle in `circular_dependencies` becomes an `ARCH` finding. Do NOT attempt your own cycle detection — the script runs deterministic DFS and is more reliable than LLM import-tracing.
+
+**When the graph is absent** (script failed, Python 3 missing, or degraded mode), fall back to LLM-based import tracing as described in the Circular Dependencies row above.
 
 ### God Objects
 

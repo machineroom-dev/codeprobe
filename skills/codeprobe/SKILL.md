@@ -15,7 +15,7 @@ allowed-tools:
   - Glob
   - Bash
   - Agent
-  - Task
+  - Write
 metadata:
   author: Nishil
   version: "2.0.0"
@@ -25,7 +25,11 @@ metadata:
 
 ## READ-ONLY CONSTRAINT
 
-**THIS SKILL IS STRICTLY READ-ONLY. NEVER modify, write, edit, or delete any user files. NEVER run commands that have side effects (no `npm install`, no `pip install`, no file writes, no git commits, no database mutations). If a fix is needed, generate a copy-pasteable fix prompt that the user can run separately. Violations of this constraint are NEVER acceptable, regardless of user request.**
+**THIS SKILL IS STRICTLY READ-ONLY WITH RESPECT TO THE CODEBASE BEING REVIEWED.** NEVER modify, write, edit, or delete any file in the user's source tree. NEVER run commands with side effects on the reviewed project (no `npm install`, no `pip install`, no git commits, no database mutations). If a fix is needed, generate a copy-pasteable fix prompt that the user can run separately.
+
+**One documented exception — report artifact:** after `/codeprobe audit` finishes, the orchestrator writes a single markdown report to `./codeprobe-reports/<timestamp>.md` in the current working directory. This is the skill's own output, not modification of reviewed code. No other writes are permitted anywhere.
+
+Violations of this constraint are NEVER acceptable, regardless of user request.
 
 ---
 
@@ -53,7 +57,7 @@ Parse the user's input to extract a subcommand and target path. The input format
 | `/codeprobe framework <path>` | Framework best practices only | `codeprobe-framework` |
 | `/codeprobe quick <path>` | Top 5 issues — run all sub-skills in scan mode, then generate full detail for top 5 | All available |
 | `/codeprobe diff [branch]` | PR-style review on changed files vs branch (default: `main`) | All relevant (Phase 3) |
-| `/codeprobe report` | Generate report from last audit | `scripts/generate_report.py` (Phase 3) |
+| `/codeprobe report` | Generate report from last audit | (Phase 3 — TBD) |
 
 ### Default Behaviors
 
@@ -162,8 +166,11 @@ For each sub-skill to run, spawn an Agent with a prompt that includes:
 5. **Pre-loaded references** — the content of all applicable reference files.
 6. **Config overrides** — severity overrides and skip rules from `.codeprobe-config.json`.
 7. **Target path** — so the sub-skill knows the project root for any targeted lookups.
+8. **Sub-skill-specific pre-loaded script output (when applicable)**:
+   - For `codeprobe-architecture`: before spawning the agent, run `python3 scripts/dependency_mapper.py <target_path>` via Bash and capture the JSON output. Pass it as an additional context block labeled `=== DEPENDENCY_GRAPH === ... === END DEPENDENCY_GRAPH ===`. The sub-skill uses this as the ground truth for cycle detection. If Python 3 is unavailable or the script fails, omit the block — the sub-skill falls back to LLM-based import tracing.
+   - For `codeprobe-performance`: if `scripts/complexity_scorer.py` output is available (optional), pass it as `=== COMPLEXITY_SCORES === ... === END COMPLEXITY_SCORES ===`.
 
-The sub-skill's own SKILL.md contains only its domain-specific detection logic. All shared context (output format, modes, source code, references) comes from the orchestrator's prompt.
+The sub-skill's own SKILL.md contains only its domain-specific detection logic. All shared context (output format, modes, source code, references, pre-computed script data) comes from the orchestrator's prompt.
 
 **Collect findings** returned by each sub-skill in the standard output contract format (Section 5).
 
@@ -176,7 +183,7 @@ The sub-skill's own SKILL.md contains only its domain-specific detection logic. 
 
 ### Execution Order
 
-- **`/codeprobe audit`**: Run sub-skills sequentially in this order: `codeprobe-security`, `codeprobe-error-handling`, `codeprobe-solid`, `codeprobe-architecture`, `codeprobe-patterns`, `codeprobe-performance`, `codeprobe-code-smells`, `codeprobe-testing`, `codeprobe-framework` — all in `full` mode. Collect all findings. Apply deduplication (Section 7A). Derive category scores from severity counts. Compute hot spots by aggregating findings per file and ranking by distinct-categories-flagged. Also run `scripts/file_stats.py` for codebase stats (skip gracefully if Python 3 unavailable).
+- **`/codeprobe audit`**: Run sub-skills sequentially in this order: `codeprobe-security`, `codeprobe-error-handling`, `codeprobe-solid`, `codeprobe-architecture`, `codeprobe-patterns`, `codeprobe-performance`, `codeprobe-code-smells`, `codeprobe-testing`, `codeprobe-framework` — all in `full` mode. Before invoking `codeprobe-architecture`, pre-compute the dependency graph via `scripts/dependency_mapper.py` and pass the JSON to the sub-skill as described in the Invocation Protocol (step 8). Collect all findings. Apply deduplication (Section 7A). Derive category scores from severity counts. Compute hot spots by aggregating findings per file and ranking by distinct-categories-flagged. Also run `scripts/file_stats.py` for codebase stats (skip gracefully if Python 3 unavailable).
 - **`/codeprobe quick`**: Run all 9 sub-skills in `scan` mode. Collect candidate issues from all. Rank by severity (critical > major > minor > suggestion), then select top 5. Re-run relevant sub-skills in `full` mode for just those 5 findings to get complete detail.
 
 ### Available Sub-Skills
@@ -364,8 +371,9 @@ Use the template at `templates/full-audit-report.md` (loaded via Read). The temp
 9. **Minor findings — Counts only**: Aggregated count per category. No individual findings listed.
 10. **Suggestions — Counts only**: Aggregated count per category. No individual findings listed.
 11. **Prioritized Fix Order**: Ordered list of all critical and major fix prompts, ranked by impact.
+12. **Save report to file**: ensure `./codeprobe-reports/` exists in the current working directory (create via Bash `mkdir -p ./codeprobe-reports` if missing). Write the full rendered markdown from steps 1-11 to `./codeprobe-reports/{YYYY-MM-DD-HHMMSS}.md` using the `Write` tool. Use the same markdown that was rendered to the terminal — do NOT re-render. After writing, emit a final terminal line: `📄 Report saved to ./codeprobe-reports/{filename}`. If the write fails (read-only filesystem, permission denied, etc.), surface the error as a short inline note but do not block or re-emit the terminal output.
 
-If the template does not exist, render inline following the same structure.
+If the template does not exist, render inline following the same structure. Step 12 (save) still applies regardless.
 
 Status thresholds (applied to overall health and each category score):
 - 80-100 = "Healthy"
@@ -389,8 +397,8 @@ Detect whether filesystem access is available. If the user has pasted or uploade
 
 1. **Switch to degraded mode**: Analyze only the in-context code provided.
 2. **Execute sub-skills sequentially** on the pasted code (no parallel agents).
-3. **Skip** `file_stats.py` and all script-dependent steps.
-4. **Skip** `/codeprobe diff`, `/codeprobe report`, and the Codebase Stats row of the audit dashboard (still render scores, hot spots, and findings).
+3. **Skip** `file_stats.py`, `dependency_mapper.py`, and all script-dependent steps (sub-skills fall back to LLM-only analysis — architecture loses deterministic cycle detection).
+4. **Skip** `/codeprobe diff`, `/codeprobe report`, the Codebase Stats row of the audit dashboard, and the report-save step (no filesystem write). Still render scores, hot spots, and findings to the terminal.
 5. **Inform the user**: "Running in Claude.ai mode — some features like codebase statistics, diff review, and multi-file analysis are unavailable. Analyzing the provided code directly."
 6. Still produce findings in the standard output contract format.
 7. Still compute scores based on findings from available sub-skills.
