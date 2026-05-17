@@ -208,6 +208,7 @@ Every finding from every sub-skill MUST include these fields:
 |-------|----------|-------------|
 | `id` | Yes | Unique identifier in format `{PREFIX}-{NNN}` (e.g., `SRP-001`, `SEC-003`) |
 | `severity` | Yes | One of: `critical`, `major`, `minor`, `suggestion` |
+| `severity_rationale` | Yes | One sentence explaining why this severity bucket and not the one below. |
 | `location` | Yes | File path + line range (e.g., `src/UserService.php:45-67`) |
 | `problem` | Yes | One sentence describing the issue |
 | `evidence` | Yes | Concrete proof from the code — quote the relevant lines |
@@ -221,6 +222,8 @@ Every finding from every sub-skill MUST include these fields:
 ### SRP-001 | Major | `src/UserService.php:45-67`
 
 **Problem:** UserService violates Single Responsibility — handles authentication, email sending, and database queries in one class.
+
+**Severity rationale:** Major (not Minor) because three unrelated responsibilities are concentrated in one class on a critical auth path — refactoring will touch every caller; not Critical because the code works correctly today, this is a maintainability risk, not a production defect.
 
 **Evidence:**
 > Lines 45-50: `public function authenticate($credentials) { ... }`

@@ -98,6 +98,8 @@
 
 **Problem:** {problem}
 
+**Severity rationale:** {severity_rationale}
+
 **Evidence:**
 > {evidence}
 

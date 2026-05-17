@@ -146,6 +146,7 @@ Every sub-skill returns findings in this structure. **`fix_prompt` is a required
     {
       "id": "SRP-001",
       "severity": "major",
+      "severity_rationale": "Major (not Minor) because four unrelated responsibilities in one class block independent testing of payment and inventory paths; not Critical because the code works correctly today — this is a maintainability/reliability risk, not a production defect.",
       "principle": "Single Responsibility",
       "location": { "file": "OrderService.php", "lines": "45-120" },
       "problem": "OrderService handles order creation, payment processing, email notifications, and inventory updates.",
@@ -170,6 +171,7 @@ Every sub-skill returns findings in this structure. **`fix_prompt` is a required
 |---|---|---|
 | `id` | ✅ | Unique ID: `{CATEGORY_PREFIX}-{NNN}` (e.g., `SRP-001`, `SEC-003`, `PERF-012`) |
 | `severity` | ✅ | `critical`, `major`, `minor`, or `suggestion` |
+| `severity_rationale` | ✅ | One sentence: why this severity bucket and not the one below |
 | `location` | ✅ | File path + line range |
 | `problem` | ✅ | What's wrong — one sentence |
 | `evidence` | ✅ | Why it's wrong — concrete proof from the code |

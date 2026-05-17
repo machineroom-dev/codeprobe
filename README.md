@@ -23,7 +23,7 @@ Senior-engineer code review as an [agent skill](https://skills.sh). Run `/codepr
 
 ## Sample Output
 
-Every `/codeprobe audit` opens with a **health dashboard** (category scores, codebase stats, hot-spot files), then lists detailed P0–P3 findings with fix prompts, and saves the whole report to `./codeprobe-reports/<project>-<cmd>-<timestamp>.md`.
+Every `/codeprobe audit` opens with a **health dashboard** (category scores, codebase stats, hot-spot files), then lists detailed P0–P3 findings with severity rationales and fix prompts, and saves the whole report to `./codeprobe-reports/<project>-<cmd>-<timestamp>.md`.
 
 ### Code Health Report — growth-engine
 
@@ -55,9 +55,9 @@ Every `/codeprobe audit` opens with a **health dashboard** (category scores, cod
 
 **Critical (P0 — 3 findings):**
 
-- **SEC-001** | `reports/query_builder.py:88` — SQL built with string concatenation against the unsanitized `filters` request param. Direct injection via `POST /reports`. **Fix:** parameterize with SQLAlchemy `text(...)` + bind params, or move the query to the ORM.
-- **ERR-007** | `workers/payment_worker.py:42-139` — `process_refund` wraps the Stripe call in a bare `try/except Exception: pass`. Failed refunds are silently dropped from the retry queue. **Fix:** catch `stripe.error.StripeError` explicitly, enqueue the payload on a dead-letter queue, alert on `InvalidRequestError`.
-- **ARCH-003** | `services/order_processor.py` ↔ `api/routers/checkout.py` — Bidirectional coupling: the service imports router types for validation while the router constructs service internals directly. Blocks both service-level unit tests and independent router evolution. **Fix:** introduce `checkout/schemas.py` as a dependency-free Pydantic layer both sides depend on.
+- **SEC-001** | `reports/query_builder.py:88` — SQL built with string concatenation against the unsanitized `filters` request param. Direct injection via `POST /reports`. **Severity rationale:** Critical (not Major) because the endpoint is public, unauthenticated, and user input flows directly into the SQL string — exploitable as-is, no preconditions. **Fix:** parameterize with SQLAlchemy `text(...)` + bind params, or move the query to the ORM.
+- **ERR-007** | `workers/payment_worker.py:42-139` — `process_refund` wraps the Stripe call in a bare `try/except Exception: pass`. Failed refunds are silently dropped from the retry queue. **Severity rationale:** Critical (not Major) because dropped refunds cause real financial loss and the silent swallow means no operator signal — data-loss path, not just a reliability risk. **Fix:** catch `stripe.error.StripeError` explicitly, enqueue the payload on a dead-letter queue, alert on `InvalidRequestError`.
+- **ARCH-003** | `services/order_processor.py` ↔ `api/routers/checkout.py` — Bidirectional coupling: the service imports router types for validation while the router constructs service internals directly. Blocks both service-level unit tests and independent router evolution. **Severity rationale:** Critical (not Major) because the checkout path cannot be tested in isolation today — every change in this area ships unverified to a revenue-critical flow. **Fix:** introduce `checkout/schemas.py` as a dependency-free Pydantic layer both sides depend on.
 
 ```
 --> Report saved to ./codeprobe-reports/growth-engine-audit-2026-04-23-221047.md
