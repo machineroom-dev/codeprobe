@@ -25,7 +25,10 @@ jobs:
     steps:
       - name: Fetch traffic data from GitHub API
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Traffic API rejects the workflow's default GITHUB_TOKEN (HTTP 403
+          # "Resource not accessible by integration"). It requires a classic
+          # PAT with repo or public_repo scope acting as a user with push access.
+          GH_TOKEN: ${{ secrets.GIST_PAT }}
         run: |
           set -euo pipefail
           gh api "repos/${{ github.repository }}/traffic/clones" > clones.json
