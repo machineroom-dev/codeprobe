@@ -1,0 +1,84 @@
+name: Snapshot Traffic to Gist
+
+# Captures GitHub's repo traffic (clones + views) and appends to a secret gist.
+# GitHub only retains traffic data for 14 days; this preserves it indefinitely.
+#
+# Required setup (one-time, manual):
+#   - Secret gist with file `codeprobe-traffic.csv` containing header row:
+#       date,clones_count,clones_uniques,views_count,views_uniques
+#   - Repo secret `GIST_PAT`: classic PAT with only `gist` scope
+#   - Repo variable `TRAFFIC_GIST_ID`: the gist ID from its URL
+
+on:
+  schedule:
+    # 02:00 UTC daily — runs shortly after GitHub's per-UTC-day rollover so
+    # yesterday's row is complete by the time we capture it.
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch traffic data from GitHub API
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh api "repos/${{ github.repository }}/traffic/clones" > clones.json
+          gh api "repos/${{ github.repository }}/traffic/views"  > views.json
+
+      - name: Build merged CSV rows
+        run: |
+          set -euo pipefail
+
+          # Map dates -> {cc, cu} for clones
+          jq '
+            [.clones[] | {(.timestamp | split("T")[0]): {cc: .count, cu: .uniques}}]
+            | add // {}
+          ' clones.json > clones_by_date.json
+
+          # Map dates -> {vc, vu} for views
+          jq '
+            [.views[]  | {(.timestamp | split("T")[0]): {vc: .count, vu: .uniques}}]
+            | add // {}
+          ' views.json > views_by_date.json
+
+          # Emit one CSV row per date present in either map, zero-filling gaps.
+          jq -r --slurpfile v views_by_date.json '
+            . as $c
+            | ([keys[], ($v[0] | keys[])] | unique) as $dates
+            | $dates[]
+            | [., ($c[.].cc // 0), ($c[.].cu // 0), ($v[0][.].vc // 0), ($v[0][.].vu // 0)]
+            | @csv
+          ' clones_by_date.json > new_rows.csv
+
+          echo "New rows from API:"
+          cat new_rows.csv
+
+      - name: Fetch gist, merge with new rows, push back
+        env:
+          GH_TOKEN: ${{ secrets.GIST_PAT }}
+          GIST_ID: ${{ vars.TRAFFIC_GIST_ID }}
+        run: |
+          set -euo pipefail
+
+          gh gist view "$GIST_ID" --filename codeprobe-traffic.csv --raw > existing.csv
+
+          head -n 1 existing.csv > merged.csv
+          tail -n +2 existing.csv > existing_data.csv || true
+
+          # Concatenate existing rows then new rows. Awk keeps the LAST occurrence
+          # per date key, so API data (concatenated second) wins over any older
+          # same-date row. Final sort puts rows in chronological order.
+          cat existing_data.csv new_rows.csv \
+            | awk -F',' 'NF > 0 { row[$1] = $0 } END { for (k in row) print row[k] }' \
+            | sort >> merged.csv
+
+          echo "Merged CSV (last 20 rows):"
+          tail -n 20 merged.csv
+
+          gh gist edit "$GIST_ID" --filename codeprobe-traffic.csv merged.csv
