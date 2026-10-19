@@ -4,3 +4,4 @@ __pycache__/
 codeprobe-reports/
 .claude/settings.local.json
 .superpowers/
+evals/results/
