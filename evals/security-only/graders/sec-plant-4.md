@@ -1,8 +1,12 @@
 ---
 type: regex
 target: last_message
-flags: i
-pattern: '(?:^|\n)#{1,6} [^\n]*\bCritical\b(?:(?!\n#{1,6} [^\n]*\b(?:Major|Minor|Suggestion)\b)[\s\S]){0,4000}(?:password[^\n]{0,120}\blog|\blog[^\n]{0,120}password)|\blogin\b[^\n]{0,200}\bCritical\b'
+pattern: '(?:^|\n)#{1,6} [^\n]*\bCritical\b(?:(?!\n#{1,6} (?:[^\n]*\b(?:Major|Minor|Suggestion)\b|(?![^\n]*\b(?:Critical|SEC-\d{3})\b)))[\s\S])*?(?:\b[Pp]assword[^\n]{0,120}\b[Ll]og(?:s|ged|ging|ger)?\b|\b[Ll]og(?:s|ged|ging|ger)?\b[^\n]{0,120}\b[Pp]assword)|\|\s*(?:\*\*)?Critical(?:\*\*)?\s*\|[^\n]*(?:\b[Pp]assword[^\n]{0,120}\b[Ll]og(?:s|ged|ging|ger)?\b|\b[Ll]og(?:s|ged|ging|ger)?\b[^\n]{0,120}\b[Pp]assword)|(?:\b[Pp]assword[^\n]{0,120}\b[Ll]og(?:s|ged|ging|ger)?\b|\b[Ll]og(?:s|ged|ging|ger)?\b[^\n]{0,120}\b[Pp]assword)[^\n]*\|\s*(?:\*\*)?Critical(?:\*\*)?\s*\|'
 ---
 
-Planted defect #4: password written to logs in `login()` reported at Critical. Matches password-and-log on one line inside the Critical section (the finding may cite the line number or the `logger.info` call rather than the function name), or `login` on the same line as "Critical".
+Planted defect #4: password written to logs in `login()` reported at Critical. The identifier is "password" and a logging token (`log`, `logs`, `logged`, `logging`, `logger`, whole words only, so "login" does not count) on one line. The function name is not required, because findings often cite only `app.py:40` or the `logger.info` call.
+
+Case-sensitive, so "critical" in prose does not count. It matches in three ways:
+(a) after a heading containing "Critical" and before the next heading that names Major, Minor or Suggestion, or that names neither Critical nor a SEC-NNN ID (for example "## Fix prompts" or "### Fix order"). The window is lazy and has no length cap.
+(b) a table or pipe row with a `| Critical |` cell before the identifier, for severity-first layouts and "**SEC-001 | Critical | ...**" lines.
+(c) a table row with the identifier before a `| Critical |` cell.
