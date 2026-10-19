@@ -24,24 +24,32 @@ Each case directory holds `prompt.md` (frontmatter: runs, `max_turns`,
 
 ## Running locally
 
-From the repo root:
+From the repo root, the full suite (all three cases):
 
 ```bash
 claude plugin eval . --ablation none --scaffold --trust-plugin --no-publish \
-  --max-cost-usd 25 \
+  --max-cost-usd 40 \
   --allow-tools Write "Bash(python3 *)" "Bash(mkdir *)" "Bash(wc *)"
 ```
 
-Add `--case audit-full` (or another case name) to run one case, `--runs N` to
-override the per-case run count, and `--keep-temp` to keep the sandboxes for
-reading the transcript. `Write` saves the report; the Bash grants cover the
-skill's `python3 scripts/*.py`, `mkdir -p ./codeprobe-reports` and `wc` calls.
-A denied Bash command is not listed as `not granted`; look for
-`permission_denied` events in the trace.
+One case:
+
+```bash
+claude plugin eval . --case audit-full --ablation none --scaffold --trust-plugin \
+  --no-publish --max-cost-usd 25 \
+  --allow-tools Write "Bash(python3 *)" "Bash(mkdir *)" "Bash(wc *)"
+```
+
+`--max-cost-usd` caps the whole invocation, summed over all cases and runs; the
+runner checks it before each run and stops with partial results (exit 2). Add
+`--runs N` to override the per-case run count and `--keep-temp` to keep the
+sandboxes. `Write` saves the report; the Bash grants cover the skill's
+`python3 scripts/*.py`, `mkdir -p ./codeprobe-reports` and `wc` calls. A denied
+Bash command is not listed as `not granted`; look for `permission_denied` events.
 
 ## Cost
 
-Observed with the default model, per run:
+Observed with the default model (full suite ≈ $29 per invocation):
 
 | Case | Runs per invocation | Cost per run | Cost per invocation |
 |---|---|---|---|
@@ -57,8 +65,9 @@ Observed with the default model, per run:
   Invocation Protocol (SKILL.md Section 4) produces.
 - **Terminal vs trace.** Criticals, the dashboard and the top-5 fix order are in
   `last_message`. Majors live only in the saved report, so those graders read
-  the `trace`, where the report is the `Write` call's JSON-escaped input. Trace
-  patterns avoid literal quotes and `^`/`$` anchors.
+  the `trace`. There the report appears JSON-escaped, twice (the `Write` call's
+  input and the tool result's echo), so trace graders scope matches to one
+  event and avoid literal quotes and `^`/`$` anchors.
 - **Plants survive.** `audit-full/graders/critical-1` … `critical-6` check that
   each planted Critical is in the terminal's Critical section. CI gates on every
   grader whose name starts with `critical-`.
