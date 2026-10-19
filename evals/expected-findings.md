@@ -53,3 +53,17 @@ does NOT over-escalate.
   `./codeprobe-reports/fixture-audit-<timestamp>.md` and the terminal shows the
   dashboard + critical findings, not just the save line.
 - **Read-only:** no fixture file is modified by the audit.
+
+## Must NOT be reported (precision baits)
+
+`fixture/safe.py` holds code that *looks* like a defect to a pattern-matching
+reviewer but is safe on inspection. Each bait is marked with a `# BAIT Bn`
+comment. Grading rule: a bait reported at **Minor or Suggestion** is tolerated (not scored); at **Major or Critical** it is a precision failure.
+
+| # | Location | Looks like | Why safe | Failure if reported at |
+|---|----------|------------|----------|------------------------|
+| B1 | `fixture/safe.py` — `admin_delete_order()` | Missing auth on a mutating endpoint (#3) | Auth is enforced by the `require_auth` decorator, defined in the same file and checking the session | Critical/Major SEC |
+| B2 | `fixture/safe.py` — `list_orders_sorted()` | SQL injection (#1) | No user input reaches the SQL string: the interpolated value is a module-level constant from a fixed allowlist (`SORT_COLUMNS`) and the row filter is parameterized | Critical SEC |
+| B3 | `fixture/safe.py` — `WAREHOUSE_API_KEY` | Hardcoded secret (#2) | The literal is a non-secret dev default; the real value comes from the environment | Critical SEC |
+| B4 | `fixture/safe.py` — `fetch_rates()` | Swallowed exception (#7) | The exception is logged and re-raised | Major ERR |
+| B5 | `fixture/safe.py` — `order_totals()` | N+1 query (#8) | One batched `WHERE id IN (...)` query, then dict lookups in the loop | Major PERF |
