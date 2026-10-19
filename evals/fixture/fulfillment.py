@@ -20,7 +20,6 @@ def require_auth(view):
     return wrapper
 
 
-# BAIT B1 — auth is enforced by require_auth (defined above), which checks the session.
 @app.route("/admin/orders/<order_id>", methods=["DELETE"])
 @require_auth
 def admin_delete_order(order_id):
@@ -31,7 +30,6 @@ def admin_delete_order(order_id):
 SORT_COLUMNS = {"date": "created_at", "total": "total"}
 
 
-# BAIT B2 — no user input reaches the SQL string: ORDER BY uses a fixed allowlist, user_id is parameterized.
 def list_orders_sorted(user_id, key):
     return db.query_all(
         f"SELECT * FROM orders WHERE user_id = ? ORDER BY {SORT_COLUMNS[key]}",
@@ -39,11 +37,9 @@ def list_orders_sorted(user_id, key):
     )
 
 
-# BAIT B3 — the literal is a non-secret dev default; the real value comes from the environment.
 WAREHOUSE_API_KEY = os.environ.get("WAREHOUSE_API_KEY", "dev-placeholder-not-a-secret")
 
 
-# BAIT B4 — the exception is logged and re-raised, not swallowed.
 def fetch_rates():
     try:
         with urllib.request.urlopen(
@@ -55,7 +51,6 @@ def fetch_rates():
         raise
 
 
-# BAIT B5 — one batched WHERE id IN (...) query before the loop; the loop only does dict lookups.
 def order_totals(order_ids):
     placeholders = ", ".join("?" for _ in order_ids)
     rows = db.query_all(
