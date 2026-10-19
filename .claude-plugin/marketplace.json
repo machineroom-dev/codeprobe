@@ -1,0 +1,3 @@
+{ "name": "codeprobe", "owner": { "name": "Nishil" },
+  "metadata": { "description": "Senior-engineer code audit, read-only" },
+  "plugins": [ { "name": "codeprobe", "source": "./", "description": "Senior-engineer code audit, read-only" } ] }
