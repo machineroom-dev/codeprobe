@@ -264,6 +264,8 @@ Every finding from every sub-skill MUST include these fields:
 | `suggestion` | Yes | What to do to fix it |
 | `fix_prompt` | Yes | A copy-pasteable prompt the user can give to Claude Code to apply the fix |
 | `refactored_sketch` | No | Optional code snippet showing the improved version |
+| `verification` | Orchestrator only | One of: `confirmed`, `downgraded`, `rejected`. Set only by the orchestrator's verifiers on Critical/Major findings; sub-skills never set it. |
+| `verification_note` | If downgraded/rejected | One sentence: for `downgraded`, which part of the severity rationale's boundary claim is false; for `rejected`, the reason, quoting the mitigating code. Empty for `confirmed`. |
 
 ### Finding Format Example
 

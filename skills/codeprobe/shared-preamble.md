@@ -21,6 +21,8 @@ Every finding MUST include ALL of the following fields:
 | `suggestion` | Yes | What to do to fix it |
 | `fix_prompt` | Yes | A copy-pasteable prompt the user can give to Claude Code to apply the fix. Must reference specific file names, line ranges, method names, and the exact change to make. |
 | `refactored_sketch` | No | Optional code snippet showing the improved version |
+| `verification` | Orchestrator only | One of: `confirmed`, `downgraded`, `rejected`. Set only by the orchestrator's verifiers on Critical/Major findings; sub-skills never set it. |
+| `verification_note` | If downgraded/rejected | One sentence: for `downgraded`, which part of the severity rationale's boundary claim is false; for `rejected`, the reason, quoting the mitigating code. Empty for `confirmed`. |
 
 ### Rendered Finding Format
 
@@ -30,6 +32,8 @@ Every finding MUST include ALL of the following fields:
 **Problem:** {problem description}
 
 **Severity rationale:** {one sentence: why this bucket, not the one below}
+
+**Verification:** downgraded from {old severity} — {verification_note}
 
 **Evidence:**
 > {quoted code patterns, specific variable names, line references}
