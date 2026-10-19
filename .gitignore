@@ -3,3 +3,4 @@ __pycache__/
 *.pyc
 codeprobe-reports/
 .claude/settings.local.json
+.superpowers/
