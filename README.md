@@ -154,7 +154,6 @@ The system uses an **orchestrator + sub-skill** architecture:
    - `file_stats.py` -- LOC, file counts, method counts per file
    - `complexity_scorer.py` -- Cyclomatic complexity per function
    - `dependency_mapper.py` -- Import graph and circular dependency detection
-   - `generate_report.py` -- Markdown report generation from audit findings
 5. **Regression evals** (`evals/`) -- A planted-defect fixture project plus expected findings (`evals/expected-findings.md`), for checking severity stability, dedup, and scoring whenever the skill or the underlying model changes.
 
 Stack detection is automatic. The orchestrator scans for file extensions and project markers (e.g., `next.config.*`, `migrations/` directory) and loads the appropriate reference guides.

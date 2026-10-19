@@ -64,13 +64,12 @@ Parse the user's input to extract a subcommand and target path. The input format
 | `/codeprobe framework <path>` | Framework best practices only | `codeprobe-framework` |
 | `/codeprobe quick <path>` | Top 5 issues — run all sub-skills in scan mode, then generate full detail for top 5 | All available |
 | `/codeprobe diff [base]` | PR-style review of changed files vs a base branch (default: `main`, fallback `master`) — see Section 4A | All 9 sub-skills, scoped to changed files |
-| `/codeprobe report` | Generate report from last audit | (Phase 3 — see Section 10) |
 
 ### Default Behaviors
 
 - **No subcommand given**: Ask the user what they want. Present the available commands.
 - **No path given**: Use the current working directory.
-- **Phase 3 stubs**: If the user invokes `report`, respond with the stub message in Section 10.
+- **Unknown subcommand**: Say it is not a codeprobe command and list the routing table above.
 
 ---
 
@@ -495,42 +494,19 @@ Detect whether filesystem access is available. If the user has pasted or uploade
 1. **Switch to degraded mode**: Analyze only the in-context code provided.
 2. **Execute sub-skills sequentially** on the pasted code (no parallel agents).
 3. **Skip** `file_stats.py`, `dependency_mapper.py`, and all script-dependent steps (sub-skills fall back to LLM-only analysis — architecture loses deterministic cycle detection).
-4. **Skip** `/codeprobe diff`, `/codeprobe report`, the Codebase Stats row of the audit dashboard, and the report-save step (no filesystem write). Still render scores, hot spots, and findings to the terminal.
+4. **Skip** `/codeprobe diff`, the Codebase Stats row of the audit dashboard, and the report-save step (no filesystem write). Still render scores, hot spots, and findings to the terminal.
 5. **Inform the user**: "Running in Claude.ai mode — some features like codebase statistics, diff review, and multi-file analysis are unavailable. Analyzing the provided code directly."
 6. Still produce findings in the standard output contract format.
 7. Still compute scores based on findings from available sub-skills.
 
 ---
 
-## 10. Phase 3 Stubs
-
-When the user invokes a command that routes to an unbuilt feature, respond with:
-
-> **Not yet available.** This feature is coming in Phase 3. Currently available commands:
->
-> - `/codeprobe audit <path>` — Full code audit
-> - `/codeprobe diff [base]` — PR-style review of changed files vs a base branch
-> - `/codeprobe solid <path>` — SOLID principles check
-> - `/codeprobe security <path>` — Security audit
-> - `/codeprobe smells <path>` — Code smells detection
-> - `/codeprobe architecture <path>` — Architecture analysis
-> - `/codeprobe patterns <path>` — Design patterns analysis
-> - `/codeprobe performance <path>` — Performance audit
-> - `/codeprobe errors <path>` — Error handling audit
-> - `/codeprobe tests <path>` — Test quality audit
-> - `/codeprobe framework <path>` — Framework best practices
-> - `/codeprobe quick <path>` — Top 5 issues
-
-This applies to: `report`.
-
----
-
-## 11. Execution Flow Summary
+## 10. Execution Flow Summary
 
 When `/codeprobe` is invoked, execute this sequence:
 
 1. **Parse command**: Extract subcommand and target path from user input.
-2. **Validate command**: Check routing table. If Phase 3 stub, respond with stub message.
+2. **Validate command**: Check the routing table. If the subcommand is unknown, say so and list the available commands.
 3. **Resolve target path**: Use provided path or default to current working directory. For `diff`: resolve the base ref and collect changed files + line ranges per Section 4A instead — the manifest is restricted to those files.
 4. **Load config**: Check for `.codeprobe-config.json` at project root. Apply defaults if absent.
 5. **Auto-detect stack**: Scan target path for technology signals. Load matching references.
