@@ -15,6 +15,8 @@ def require_auth(view):
     def wrapper(*args, **kwargs):
         if not session.get("user_id"):
             return "", 401
+        if session.get("role") != "admin":
+            return "", 403
         return view(*args, **kwargs)
 
     return wrapper
@@ -32,7 +34,7 @@ SORT_COLUMNS = {"date": "created_at", "total": "total"}
 
 def list_orders_sorted(user_id, key):
     return db.query_all(
-        f"SELECT * FROM orders WHERE user_id = ? ORDER BY {SORT_COLUMNS[key]}",
+        f"SELECT * FROM orders WHERE user_id = ? ORDER BY {SORT_COLUMNS[key]} LIMIT 100",
         (user_id,),
     )
 
