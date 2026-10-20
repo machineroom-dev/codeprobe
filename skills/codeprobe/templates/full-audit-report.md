@@ -18,6 +18,7 @@
        - Critical: Full detail (evidence + fix prompt)
        - Major: One-liner table row (ID, file, problem, fix prompt)
        - Conflicting Recommendations (only when detected — see SKILL.md §7A step 2)
+       - Rejected by Verification (collapsed; only when rejected_count > 0 — see SKILL.md §4B)
        - Minor: Count per category only
        - Suggestions: Count per category only
     3. Prioritized fix order
@@ -82,6 +83,8 @@
 
 **Findings total:** {total_critical} critical, {total_major} major, {total_minor} minor, {total_suggestion} suggestions
 **Duplicates removed:** {dedup_count} cross-category duplicates consolidated
+**Rejected by verification:** {rejected_count}
+<!-- Append " ({n} categories unverified)" when unverified_categories > 0 ("category" when n = 1). Omit this line only when config verify is false. -->
 
 ---
 
@@ -100,6 +103,8 @@
 **Problem:** {problem}
 
 **Severity rationale:** {severity_rationale}
+
+**Verification:** downgraded from {old_severity} — {verification_note} <!-- only when the finding was downgraded; omit otherwise -->
 
 **Evidence:**
 > {evidence}
@@ -131,6 +136,21 @@
 - **{id_a}** ({category_a}, {severity_a}): {suggestion_a}
 - **{id_b}** ({category_b}, {severity_b}): {suggestion_b}
 - **Tradeoff:** {one line naming what the operator is choosing between}
+
+---
+
+### Rejected by Verification
+
+<!-- Omit this section entirely when rejected_count is 0. -->
+
+<details><summary>{rejected_count} findings rejected by verification</summary>
+
+| ID | Location | Reason |
+|----|----------|--------|
+{For each entry in rejected[]:}
+| {id} | `{file}:{lines}` | {verification_note} |
+
+</details>
 
 ---
 

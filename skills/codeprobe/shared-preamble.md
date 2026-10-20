@@ -8,7 +8,7 @@
 
 ## Output Contract
 
-Every finding MUST include ALL of the following fields:
+Every finding MUST include every field marked `Yes` below. The two verification fields are set only by the orchestrator's verifiers (orchestrator SKILL.md Section 4B), never by sub-skills:
 
 | Field | Required | Description |
 |-------|----------|-------------|

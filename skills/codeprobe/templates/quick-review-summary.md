@@ -14,6 +14,7 @@
     {problem}             — One-sentence description of the issue
     {fix_prompt}          — Copy-pasteable prompt for Claude Code to apply the fix
     {score}               — Estimated overall score (0-100)
+    {rejected_count}      — Findings rejected by the verification pass (SKILL.md §4B)
 -->
 
 # Quick Review -- {project_name}
@@ -28,9 +29,13 @@
 | 4 | {severity_emoji} {severity} | `{file}:{lines}` | {problem} | {fix_prompt} |
 | 5 | {severity_emoji} {severity} | `{file}:{lines}` | {problem} | {fix_prompt} |
 
+<!-- If fewer than 5 candidates survived verification, render only the survivors and add the line: Fewer than 5 findings survived verification. -->
+
 **Overall Impression:** {1-2 sentence summary of code health}
 
 **Estimated Score:** ~{score}/100
+
+**Rejected by verification:** {rejected_count}
 
 Run `/codeprobe audit {path}` for the full report with all findings, evidence, and refactoring roadmap.
 

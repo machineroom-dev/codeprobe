@@ -14,6 +14,7 @@
     {major_count}      — Count of major findings
     {minor_count}      — Count of minor findings
     {suggestion_count} — Count of suggestions
+    {rejected_count}   — Count of findings rejected by the verification pass (SKILL.md §4B)
     {file}             — File path relative to project root
     {lines}            — Line range (e.g., 45-67)
     {id}               — Finding ID (e.g., SEC-001, PERF-003)
@@ -33,6 +34,7 @@
 | :orange_circle: Major | {major_count} |
 | :yellow_circle: Minor | {minor_count} |
 | :blue_circle: Suggestion | {suggestion_count} |
+| Rejected by verification | {rejected_count} |
 
 ---
 
