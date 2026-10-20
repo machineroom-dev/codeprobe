@@ -51,4 +51,4 @@ Return only this JSON shape, one entry per input finding:
   "summary": { "confirmed": 0, "downgraded": 0, "rejected": 0 } }
 ```
 
-`severity` echoes the input severity and is lowered by exactly one bucket only when `verification` is `downgraded`; `verification_note` is empty for `confirmed`.
+In `/codeprobe quick` the input findings may span several categories; then set `category` to `quick`. `severity` echoes the input severity and is lowered by exactly one bucket only when `verification` is `downgraded`; `verification_note` is empty for `confirmed`.

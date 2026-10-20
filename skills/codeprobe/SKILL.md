@@ -181,6 +181,7 @@ For each sub-skill to run, spawn an Agent with a prompt that includes:
 8. **Sub-skill-specific pre-computed script output (when applicable)**:
    - For `codeprobe-architecture`: before spawning the agent, run `python3 scripts/dependency_mapper.py <target_path>` via Bash and capture the JSON output. Pass it as an additional context block labeled `=== DEPENDENCY_GRAPH === ... === END DEPENDENCY_GRAPH ===`. The sub-skill uses this as the ground truth for cycle detection. If Python 3 is unavailable or the script fails, omit the block — the sub-skill falls back to LLM-based import tracing.
    - For `codeprobe-performance`: if `scripts/complexity_scorer.py` output is available (optional), pass it as `=== COMPLEXITY_SCORES === ... === END COMPLEXITY_SCORES ===`.
+9. **Bash discipline**, one line: "Every Bash call is exactly one command — never `&&`, `;`, loops, or shell variables; use Read to read files."
 
 The sub-skill's own SKILL.md contains only its domain-specific detection logic. All other shared context (output format, modes, file manifest, reference paths, pre-computed script data) comes from the orchestrator's prompt; the sub-agent reads source files itself.
 
@@ -197,7 +198,7 @@ The sub-skill's own SKILL.md contains only its domain-specific detection logic. 
 
 - **Parallelism:** Sub-skill agents are independent — deduplication and scoring happen only after all of them return. Spawn ALL applicable sub-skill agents **in a single message (parallel)**; do not run them one at a time. The fixed category order below is for report presentation only, not execution. (Exception: Claude.ai degraded mode, Section 9, runs sequentially because no sub-agents are available.)
 - **Before spawning:** pre-compute the dependency graph via `scripts/dependency_mapper.py` (for `codeprobe-architecture`, Invocation Protocol step 8) and run `scripts/file_stats.py` for the manifest and codebase stats (skip gracefully if Python 3 unavailable).
-- **`/codeprobe audit`**: Spawn all 9 sub-skills in `full` mode. Presentation order: `codeprobe-security`, `codeprobe-error-handling`, `codeprobe-solid`, `codeprobe-architecture`, `codeprobe-patterns`, `codeprobe-performance`, `codeprobe-code-smells`, `codeprobe-testing`, `codeprobe-framework`. Collect all findings. Apply deduplication (Section 7A). Derive category scores from severity counts. Compute hot spots by aggregating findings per file and ranking by distinct-categories-flagged.
+- **`/codeprobe audit`**: Spawn all 9 sub-skills in `full` mode. Presentation order: `codeprobe-security`, `codeprobe-error-handling`, `codeprobe-solid`, `codeprobe-architecture`, `codeprobe-patterns`, `codeprobe-performance`, `codeprobe-code-smells`, `codeprobe-testing`, `codeprobe-framework`. Collect all findings. Run the verification pass (Section 4B). Apply deduplication (Section 7A). Derive category scores from severity counts. Compute hot spots by aggregating findings per file and ranking by distinct-categories-flagged.
 - **`/codeprobe quick`**: Spawn all 9 sub-skills in `scan` mode (parallel). Collect each sub-skill's top-5 candidates (already carrying full output-contract detail). Rank all candidates by severity (critical > major > minor > suggestion), breaking ties by category weight (Section 7). Send the provisional top 8 through the verification pass (Section 4B), then render the top 5 survivors. This is a single pass — no re-runs.
 
 ### Available Sub-Skills
@@ -231,11 +232,11 @@ PR-style review: analyze only what changed relative to a base branch, so review 
 
 ### Changed-File Collection
 
-1. Compute the merge base: `MB=$(git merge-base <base> HEAD)`. Comparing against the merge base — not the base tip — reviews only this branch's changes, matching what a PR diff shows even when the base has moved on.
-2. Changed files: `git diff --name-status $MB` (this includes uncommitted working-tree changes, which is intended — review what would ship). Drop deleted files (status `D`).
+1. Compute the merge base: run `git merge-base <base> HEAD` as its own Bash call and substitute the printed SHA (written `<MB>` below) into the later commands — no shell variables (Bash discipline, Section 4). Comparing against the merge base — not the base tip — reviews only this branch's changes, matching what a PR diff shows even when the base has moved on.
+2. Changed files: `git diff --name-status <MB>` (this includes uncommitted working-tree changes, which is intended — review what would ship). Drop deleted files (status `D`).
 3. Untracked files: `git ls-files --others --exclude-standard`.
 4. Filter both lists to the source/config extensions used for the manifest (Section 4) and apply the same directory exclusions.
-5. Changed line ranges per file: parse the `@@` hunk headers (new-file side) from `git diff -U0 $MB -- <file>`. Untracked files count as fully changed.
+5. Changed line ranges per file: parse the `@@` hunk headers (new-file side) from `git diff -U0 <MB> -- <file>`. Untracked files count as fully changed.
 6. If the resulting list is empty, report "No reviewable changes vs `<base>`" and stop — do not fall back to a full audit unasked.
 
 ### Execution
@@ -260,7 +261,7 @@ After every sub-skill agent has returned — and before deduplication (Section 7
 ### When it runs
 
 - `/codeprobe audit`, `/codeprobe diff`, and every single-category command (`security`, `solid`, …): once all sub-skill agents have returned.
-- `/codeprobe quick`: after ranking the pooled scan-mode candidates (Section 4, Execution Order). Only the provisional **top 8** candidates are verified.
+- `/codeprobe quick`: after ranking the pooled scan-mode candidates (Section 4, Execution Order). Only the **Critical and Major findings among the provisional top 8** are verified; Minor and Suggestion candidates in the top 8 pass through as survivors. If none of the top 8 is Critical or Major, spawn nothing.
 
 ### What is verified
 
@@ -270,7 +271,7 @@ After every sub-skill agent has returned — and before deduplication (Section 7
 ### Fan-out
 
 - One verifier agent per category that has at least one Critical or Major finding. Spawn all verifiers **in a single message (parallel)**, never one at a time. Maximum 9.
-- `/codeprobe quick` spawns exactly **one** verifier, for the provisional top 8 across all categories.
+- `/codeprobe quick` spawns exactly **one** verifier, for the Critical/Major findings among the provisional top 8, across all categories.
 
 ### Verifier prompt composition
 
@@ -284,10 +285,13 @@ Each verifier prompt contains, in this order:
    === END VERIFICATION RUBRIC ===
    ```
    Do not inline the rubric. If a verifier replies `RUBRIC UNREADABLE`, read the file yourself and re-spawn that verifier once with the content inlined verbatim between the same markers.
-3. The **findings to verify** — the category's Critical/Major findings (for `quick`, the top-8 list) with every output-contract field from Section 5.
+3. The **findings to verify** — the category's Critical/Major findings (for `quick`, the Critical/Major findings among the top 8, which may span categories) with every output-contract field from Section 5.
 4. The **file manifest** (Section 4, Context Preparation step 2).
 5. The **reference guide paths** (paths only).
 6. The **target path**.
+7. One line of **Bash discipline**: "Every Bash call is exactly one command — never `&&`, `;`, loops, or shell variables; use Read to read files." (The same sentence goes into every sub-skill agent prompt, Invocation Protocol step 9.)
+
+Absolute paths for the rubric, preamble, and sub-skill files come from this SKILL.md's own location (the skill base directory); never run `realpath`, `pwd`, or `cd` to derive them.
 
 Do **not** include the sub-skill's SKILL.md, its detection tables, or the shared preamble beyond the READ-ONLY block. A verifier that sees the detection pattern will re-run the pattern instead of tracing the claim.
 
@@ -298,14 +302,18 @@ The verifier returns the shape defined in `verification-rubric.md` (`findings[]`
 | `verification` | Orchestrator action |
 |---|---|
 | `confirmed` | Keep the finding unchanged. |
-| `downgraded` | Keep the `id`; set `severity` to the echoed value (it must be exactly one bucket below the original — if it is not, treat the verdict as `confirmed`); store `verification_note` on the finding. |
+| `downgraded` | Keep the `id`; record the original severity as `old_severity`, then set `severity` to the echoed value (it must be exactly one bucket below the original — if it is not, treat the verdict as `confirmed`); store `verification_note` on the finding. Append `{id, location, old_severity, severity, verification_note}` to `downgraded[]`. |
 | `rejected` | Remove the finding before Section 7A and before scoring. Append `{id, location, verification_note}` to `rejected[]`. |
 
-Then set `rejected_count = len(rejected[])`. Ignore any returned entry whose `id` was not in the input, any verdict that raises severity, and any new finding — verifiers cannot add or escalate.
+Then set `rejected_count = len(rejected[])` and `downgraded_count = len(downgraded[])`. Ignore any returned entry whose `id` was not in the input, any verdict that raises severity, and any new finding — verifiers cannot add or escalate. An input finding that receives no verdict passes through unverified and unchanged.
 
 ### Failure handling
 
-If a verifier agent errors, times out, or returns output that cannot be mapped onto the rubric's shape, every finding of that category passes through **unverified and unchanged**, and `unverified_categories` is incremented by one. Verification never blocks or delays the report; a missing verifier result is reported on the dashboard line (Section 8), not retried.
+If a verifier agent errors, times out, or returns output that cannot be mapped onto the rubric's shape, every finding of that category passes through **unverified and unchanged**, and `unverified_categories` is incremented by one. Verification never blocks or delays the report; a missing verifier result is reported on the dashboard line (Section 8), not retried. The one exception is the `RUBRIC UNREADABLE` reply, which gets the single inlined re-spawn described under Verifier prompt composition; if that re-spawn also fails, this rule applies. For `/codeprobe quick`, whose single verifier spans categories, a failure sets `unverified_categories` to the number of categories represented in its input.
+
+### Reporting rule (all surfaces)
+
+Every surface that shows a verification count renders exactly `**Rejected by verification:** {rejected_count}` (the PR comment uses its table row instead). Append ` ({n} categories unverified)` when `unverified_categories` > 0, using `category` when n is 1. Omit the line, the row, and the Rejected/Downgraded sections entirely when config `verify` is `false`. Placement differs by surface on purpose — last dashboard line in the terminal, after "Duplicates removed" in the saved file's Score Breakdown — and each template fixes its own position.
 
 ### `/codeprobe quick` rendering rule
 
@@ -486,7 +494,7 @@ Use the template at `templates/full-audit-report.md` (loaded via Read) to assemb
 | Surface | What it shows | How it's produced |
 |---------|---------------|-------------------|
 | **Terminal** | Dashboard + executive summary + critical findings (full detail) + prioritized fix order (top 5) + "Report saved" line | Streamed markdown sections in the assistant response |
-| **Saved file** (`./codeprobe-reports/<project>-<cmd>-<ts>.md`) | Everything: dashboard, exec summary, all critical/major findings, minor/suggestion counts, full prioritized fix order | Plain markdown written via `Write` tool |
+| **Saved file** (`./codeprobe-reports/<project>-<cmd>-<ts>.md`) | Everything: dashboard, exec summary, all critical/major findings, minor/suggestion counts, full prioritized fix order, Downgraded/Rejected by Verification sections | Plain markdown written via `Write` tool |
 
 The terminal must never be empty or reduced to just a save confirmation. If Claude only emitted the save line in a past run, that was a bug in how these instructions were followed — fix it by executing the flow below in order.
 
@@ -495,7 +503,7 @@ The terminal must never be empty or reduced to just a save confirmation. If Clau
 **A. Compute data** (shared by both surfaces)
   1. Run sub-skills per Section 4, collect findings, verify Critical/Major findings per Section 4B, deduplicate per Section 7A.
   2. Derive category scores, overall score, hot spots, codebase stats.
-  3. Assemble an in-memory "report bundle": `{dashboard_data, exec_summary, critical[], major[], minor_counts[], suggestion_counts[], fix_order[], rejected[], rejected_count, unverified_categories}`.
+  3. Assemble an in-memory "report bundle": `{dashboard_data, exec_summary, critical[], major[], minor_counts[], suggestion_counts[], fix_order[], rejected[], rejected_count, downgraded[], downgraded_count, unverified_categories}`.
 
 **B. Render to terminal** (user-facing — emit these **directly as markdown in the assistant response**, in order)
 
@@ -505,7 +513,7 @@ The terminal must never be empty or reduced to just a save confirmation. If Clau
 
   1. **Dashboard (markdown)** — emit the dashboard block inline. Include: title line (`## Code Health Report — {project}`), `**Overall Health:** {score}/100 [{status_label}]`, the 9-row **Category Scores markdown table** with columns `Category | Score | Bar | Status` (bar wrapped in backticks, 20-char Unicode `█`/`░` proportional to score), codebase stats block (files, LOC, backend/frontend split, largest file, test ratio, comment ratio), a hot-spots list (up to 3 entries), and — last, on its own line — `**Rejected by verification:** {rejected_count}` (append ` ({n} categories unverified)` when `unverified_categories` > 0, using `category` when n is 1; omit the whole line only when config `verify` is `false`). Status labels plain text in the Status column, no emoji, no brackets inside the table.
   2. **Executive Summary** — 2-3 sentences covering the most important findings.
-  3. **Critical findings — full detail** — for each critical finding: ID, location, problem, severity rationale, evidence, suggestion, fix prompt, and the `**Verification:** downgraded from {old severity} — {verification_note}` line directly under the severity rationale when the finding was downgraded (omit otherwise). This is the highest-signal section; always show in the terminal.
+  3. **Critical findings — full detail** — for each critical finding: ID, location, problem, severity rationale, evidence, suggestion, fix prompt. (A finding that is still Critical was never downgraded, so no `**Verification:**` line appears here; downgrades are listed in the saved file's "Downgraded by Verification" table.) This is the highest-signal section; always show in the terminal.
   4. **Prioritized Fix Order (top 5)** — the first 5 entries from the full prioritized fix order. Reference the saved file for the complete list.
   5. **Save confirmation line** — `--> Report saved to ./codeprobe-reports/{project}-{cmd}-{YYYY-MM-DD-HHMMSS}.md` (no emoji; ASCII arrow). This is the LAST line in the terminal output.
 
@@ -513,7 +521,7 @@ The terminal must never be empty or reduced to just a save confirmation. If Clau
 
 **C. Write saved-file markdown**
 
-  1. Build the full markdown using `templates/full-audit-report.md` placeholders — this includes sections that are NOT streamed to the terminal (major findings table, minor/suggestion counts, full prioritized fix order, and the collapsed "Rejected by Verification" section — omitted when `rejected_count` is 0).
+  1. Build the full markdown using `templates/full-audit-report.md` placeholders — this includes sections that are NOT streamed to the terminal (major findings table, minor/suggestion counts, full prioritized fix order, the "Downgraded by Verification" table — omitted when `downgraded_count` is 0 — and the collapsed "Rejected by Verification" section — omitted when `rejected_count` is 0).
   2. Derive the filename as `{project}-{cmd}-{YYYY-MM-DD-HHMMSS}.md`:
      - `{project}` — resolve the target path to an absolute path (use the current working directory if the user passed no path); take its basename; if that basename points to a file, strip the extension; slugify it (lowercase; replace any run of `[^a-z0-9]+` with a single `-`; trim leading/trailing `-`); fall back to `unknown` if the slug ends up empty.
      - `{cmd}` — the subcommand routed in Section 1 (`audit`, `quick`, `diff`, `security`, `solid`, `architecture`, `performance`, `errors`, `tests`, `smells`, `patterns`, `framework`), lowercased.
@@ -543,7 +551,7 @@ Use the template at `templates/quick-review-summary.md` (loaded via Read). Befor
 
 1. **Header**: Project name, "Quick Review — Top 5 Issues".
 2. **Top 5 Findings**: Full detail for the 5 most impactful issues, each with fix prompt.
-3. **Summary Counts**: Total issues found by severity across all categories, plus `**Rejected by verification:** {rejected_count}`.
+3. **Summary Counts**: Total issues found by severity across all categories, then `**Estimated Score:**`, then `**Rejected by verification:** {rejected_count}` (Section 4B reporting rule).
 4. **Next Step**: Suggest running `/codeprobe audit` for the complete picture.
 
 ### `/codeprobe diff` — PR-Style Review
@@ -563,7 +571,7 @@ Used by `security`, `solid`, `architecture`, `performance`, `errors`, `tests`, `
 
 1. **Header**: `## {Category} Review — {project}` and one line of counts: `{n} critical · {n} major · {n} minor · {n} suggestions`.
 2. **Every finding, full detail**, grouped under `### Critical Issues`, `### Major Issues`, `### Minor Issues`, `### Suggestions` (omit empty groups), each rendered in the Rendered Finding Format from `shared-preamble.md` — including the `**Severity rationale:**` line and, when the finding was downgraded, the `**Verification:**` line.
-3. `**Rejected by verification:** {rejected_count}` (with the unverified suffix when applicable).
+3. `**Rejected by verification:** {rejected_count}` per the Section 4B reporting rule.
 4. **Save confirmation line** — same format as Section 8B step 5.
 
 **Saved file**: the same markdown, plus the collapsed "Rejected by Verification" section (`<details>` with an `ID | Location | Reason` table; omit when `rejected_count` is 0), written to `./codeprobe-reports/{project}-{cmd}-{YYYY-MM-DD-HHMMSS}.md` following the Section 8C filename and write rules.
@@ -594,7 +602,7 @@ When `/codeprobe` is invoked, execute this sequence:
 6. **Apply config overrides**: If `framework` is set in config, adjust detection. Apply `skip_categories` and `skip_rules`.
 7. **Execute sub-skills**: Prepare shared context (Section 4), then spawn all applicable sub-skill agents in parallel with the appropriate mode.
 8. **Collect findings**: Aggregate all findings in the output contract format.
-8a. **Verify findings**: run Section 4B on Critical/Major findings (one verifier per category, spawned in parallel; `quick` verifies its provisional top 8 with one verifier); drop rejected findings, apply downgrades, record `rejected_count` and `unverified_categories`. Skipped when config `verify` is `false`.
+8a. **Verify findings**: run Section 4B on Critical/Major findings (one verifier per category, spawned in parallel; `quick` verifies the Critical/Major findings among its provisional top 8 with one verifier); drop rejected findings, apply downgrades, record `rejected_count`, `downgraded_count` and `unverified_categories`. Skipped when config `verify` is `false`.
 9. **Deduplicate findings**: Apply the cross-category deduplication procedure (Section 7A) — route genuine conflicts to the Conflicting Recommendations section, drop true duplicates, recount severity totals per category.
 10. **Compute scores**: Calculate per-category and overall scores using the post-deduplication severity counts and the formulas in Section 7.
 11. **Render report**: Format output using the appropriate template or inline format. Use the tiered output format for `/codeprobe audit`.

@@ -33,7 +33,7 @@ Every finding MUST include every field marked `Yes` below. The two verification 
 
 **Severity rationale:** {one sentence: why this bucket, not the one below}
 
-**Verification:** downgraded from {old severity} — {verification_note}
+**Verification:** downgraded from {old severity} — {verification_note}   <- only when the finding was downgraded; omit otherwise
 
 **Evidence:**
 > {quoted code patterns, specific variable names, line references}

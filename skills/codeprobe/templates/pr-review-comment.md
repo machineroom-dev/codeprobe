@@ -35,6 +35,7 @@
 | :yellow_circle: Minor | {minor_count} |
 | :blue_circle: Suggestion | {suggestion_count} |
 | Rejected by verification | {rejected_count} |
+<!-- Append " ({n} categories unverified)" to the count when unverified_categories > 0. Omit this row when config verify is false (SKILL.md §4B reporting rule). -->
 
 ---
 

@@ -36,6 +36,7 @@
 **Estimated Score:** ~{score}/100
 
 **Rejected by verification:** {rejected_count}
+<!-- Append " ({n} categories unverified)" when unverified_categories > 0 ("category" when n = 1). Omit this line when config verify is false (SKILL.md §4B reporting rule). -->
 
 Run `/codeprobe audit {path}` for the full report with all findings, evidence, and refactoring roadmap.
 
