@@ -29,7 +29,7 @@ does NOT over-escalate.
 | 13 | `fixture/manager.py` — `activity_report()` | Performance | Minor/Major | Queries inside nested loops; unbounded cache (`report_cache`) with no TTL/invalidation |
 | 14 | `fixture/manager.py` — `update_profile()` | Code Smells | Minor | Boolean blindness: 3 boolean params |
 | 15 | `fixture/manager.py` — `update_profile()` | Security | Major | Column names interpolated into SQL from `fields` keys (mass-assignment-style vector) |
-| 16 | `fixture/manager.py` — `merge_duplicate_accounts()` | Error Handling | **Critical** | Multi-step destructive writes (two UPDATEs + DELETE) without a transaction |
+| 16 | `fixture/manager.py` — `merge_duplicate_accounts()` | Error Handling | **Critical** | Multi-step destructive writes (credit transfer + two UPDATEs + DELETE) without a transaction; each statement auto-commits, and the credit transfer is not idempotent, so a failure before the DELETE leaves money double-counted on retry |
 | 17 | `fixture/manager.py` — magic numbers | Code Smells | Minor | `86400`, `0.15`, `5`/`50`, `7` in logic paths without named constants |
 | 18 | `fixture/models.py` — `User` | Architecture | Minor | Anemic model: only getters/setters, zero behavior |
 | 19 | `fixture/utils.js` — `isSessionFresh()` / `findUser()` | Error Handling / Code Smells | Minor | Loose `==` comparisons; magic number `86400` |

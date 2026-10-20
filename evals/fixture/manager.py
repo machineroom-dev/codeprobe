@@ -211,6 +211,11 @@ class UserManager:
 
     def merge_duplicate_accounts(self, primary_id, duplicate_id):
         db.execute(
+            "UPDATE users SET credit_balance = credit_balance + "
+            "(SELECT credit_balance FROM users WHERE id = ?) WHERE id = ?",
+            (duplicate_id, primary_id),
+        )
+        db.execute(
             "UPDATE orders SET user_id = ? WHERE user_id = ?",
             (primary_id, duplicate_id),
         )
