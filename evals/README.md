@@ -29,7 +29,7 @@ From the repo root, the full suite (all three cases):
 ```bash
 claude plugin eval . --ablation none --scaffold --trust-plugin --no-publish \
   --max-cost-usd 40 \
-  --allow-tools Write "Bash(python3 *)" "Bash(mkdir *)" "Bash(wc *)"
+  --allow-tools Write "Bash(python3 *)" "Bash(mkdir *)" "Bash(wc *)" "Bash(date *)"
 ```
 
 One case:
@@ -37,14 +37,15 @@ One case:
 ```bash
 claude plugin eval . --case audit-full --ablation none --scaffold --trust-plugin \
   --no-publish --max-cost-usd 25 \
-  --allow-tools Write "Bash(python3 *)" "Bash(mkdir *)" "Bash(wc *)"
+  --allow-tools Write "Bash(python3 *)" "Bash(mkdir *)" "Bash(wc *)" "Bash(date *)"
 ```
 
 `--max-cost-usd` caps the whole invocation, summed over all cases and runs; the
 runner checks it before each run and stops with partial results (exit 2). Add
 `--runs N` to override the per-case run count and `--keep-temp` to keep the
 sandboxes. `Write` saves the report; the Bash grants cover the skill's
-`python3 scripts/*.py`, `mkdir -p ./codeprobe-reports` and `wc` calls. A denied
+`python3 scripts/*.py`, `mkdir -p ./codeprobe-reports`, `wc` and
+`date +%Y-%m-%d-%H%M%S` (the report filename timestamp) calls. A denied
 Bash command is not listed as `not granted`; look for `permission_denied` events.
 
 ## Cost

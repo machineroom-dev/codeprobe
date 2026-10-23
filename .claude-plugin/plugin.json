@@ -1,6 +1,6 @@
 {
   "name": "codeprobe",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "Senior-engineer code audit: 9 parallel review agents, scored health dashboard, severity-rated findings with fix prompts. Read-only.",
   "author": { "name": "Nishil" },
   "license": "MIT",

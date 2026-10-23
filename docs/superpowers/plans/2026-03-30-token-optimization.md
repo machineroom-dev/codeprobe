@@ -1,5 +1,7 @@
 # Codeprobe Token Optimization Plan
 
+> **Note (v2.3.0):** The regression evals are no longer a hand-written `evals/evals.json`; they now live under `evals/` as runnable `claude plugin eval` cases (see `evals/README.md`).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Reduce token consumption by ~50-60% per codeprobe run by eliminating duplicated boilerplate from sub-skills and having the orchestrator pre-load shared context (references, source files, preamble).

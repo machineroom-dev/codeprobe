@@ -82,6 +82,17 @@ Then run `/codeprobe audit .` in any project.
 
 **Reports are saved** to `./codeprobe-reports/<project>-<cmd>-<timestamp>.md` in your current directory (e.g. `growth-engine-audit-2026-04-23-221047.md`) — the filename tells you which project and which command the report came from at a glance. Add `codeprobe-reports/` to your `.gitignore` to keep them out of source control.
 
+### Install as a Claude Code plugin
+
+```
+/plugin marketplace add nishilbhave/codeprobe
+/plugin install codeprobe@codeprobe
+```
+
+Or from a shell: `claude plugin marketplace add nishilbhave/codeprobe && claude plugin install codeprobe@codeprobe`.
+
+Plugin installs invoke `/codeprobe:codeprobe audit .` (and `/codeprobe:codeprobe <command> <path>` for the rest); skills.sh installs keep `/codeprobe audit .`.
+
 ---
 
 ## Commands
@@ -101,7 +112,7 @@ Then run `/codeprobe audit .` in any project.
 | `/codeprobe patterns <path>` | Design patterns analysis |
 | `/codeprobe framework <path>` | Framework best practices |
 
-If no path is given, the current working directory is used.
+If no path is given, the current working directory is used. Installed as a plugin? Prefix each command as `/codeprobe:codeprobe <command> <path>` -- see [Install as a Claude Code plugin](#install-as-a-claude-code-plugin).
 
 ### Running on a specific path
 
@@ -154,7 +165,14 @@ The system uses an **orchestrator + sub-skill** architecture:
    - `file_stats.py` -- LOC, file counts, method counts per file
    - `complexity_scorer.py` -- Cyclomatic complexity per function
    - `dependency_mapper.py` -- Import graph and circular dependency detection
-5. **Regression evals** (`evals/`) -- A planted-defect fixture project plus expected findings (`evals/expected-findings.md`), for checking severity stability, dedup, and scoring whenever the skill or the underlying model changes.
+5. **Verification** -- After the sub-skills return, an independent verifier agent re-checks every Critical and Major finding against the code and either confirms it, downgrades it by one severity bucket, or rejects it; Minor and Suggestion findings are not verified. Rejected findings are removed before deduplication and scoring, counted on the dashboard's `Rejected by verification` line, and listed in a collapsed "Rejected by verification" section of the saved report so you can disagree. Set `"verify": false` in the config to skip the pass.
+6. **Regression evals** (`evals/`) -- A planted-defect fixture project plus expected findings (`evals/expected-findings.md`), run as `claude plugin eval` cases for checking severity stability, dedup, scoring, and verification whenever the skill or the underlying model changes. A full run costs roughly $29 (see `evals/README.md`):
+
+   ```bash
+   claude plugin eval . --ablation none --scaffold --trust-plugin --no-publish \
+     --max-cost-usd 40 \
+     --allow-tools Write "Bash(python3 *)" "Bash(mkdir *)" "Bash(wc *)" "Bash(date *)"
+   ```
 
 Stack detection is automatic. The orchestrator scans for file extensions and project markers (e.g., `next.config.*`, `migrations/` directory) and loads the appropriate reference guides.
 
@@ -172,7 +190,7 @@ minor_penalty = min(10, minor_count * 2)
 category_score = max(0, 100 - crit_penalty - major_penalty - minor_penalty)
 ```
 
-Suggestions do not affect scores. The overall score is a weighted average of active categories:
+Suggestions do not affect scores. Findings rejected by verification are removed before scoring. The overall score is a weighted average of active categories:
 
 | Category | Weight |
 |----------|--------|
@@ -210,11 +228,12 @@ Create a `.codeprobe-config.json` in your project root to customize behavior:
   "skip_rules": ["SPEC-GEN-001"],
   "framework": "laravel",
   "extra_references": [],
-  "report_format": "markdown"
+  "report_format": "markdown",
+  "verify": true
 }
 ```
 
-All fields are optional. If the file is absent, defaults apply. If `skip_categories` is set, weights are normalized to 100%.
+All fields are optional. If the file is absent, defaults apply. If `skip_categories` is set, weights are normalized to 100%. `verify` (default `true`) runs the verification pass on Critical and Major findings; `false` skips it and drops the `Rejected by verification` line.
 
 ---
 
