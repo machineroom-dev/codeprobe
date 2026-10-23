@@ -35,4 +35,4 @@ Sub-skills run with a narrower `allowed-tools` (typically `Read`, `Grep`, `Glob`
 
 ## Reporting a vulnerability
 
-Open an issue at https://github.com/machine-room-dev/codeprobe/issues or contact the maintainer listed in `skills/codeprobe/SKILL.md`.
+Open an issue at https://github.com/machineroom-dev/codeprobe/issues or contact the maintainer listed in `skills/codeprobe/SKILL.md`.

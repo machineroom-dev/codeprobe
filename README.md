@@ -25,7 +25,7 @@ Senior-engineer code review as an [agent skill](https://skills.sh). Run `/codepr
 ## What's New in v2.3.0
 
 - **Verified findings.** After the category reviewers finish, an independent verifier agent re-checks every Critical and Major finding against the code and confirms it, downgrades it one severity level, or rejects it as a false positive. Rejected findings no longer count against your score; the dashboard shows how many were rejected, and the saved report lists them in a collapsed section so you can disagree. Verification adds roughly a third to an audit's cost -- set `"verify": false` in [the config](#configuration) to skip it.
-- **Install as a Claude Code plugin** -- `/plugin marketplace add machine-room-dev/codeprobe`, then `/plugin install codeprobe@codeprobe`. The skills.sh install keeps working. See [Install](#install-as-a-claude-code-plugin).
+- **Install as a Claude Code plugin** -- `/plugin marketplace add machineroom-dev/codeprobe`, then `/plugin install codeprobe@codeprobe`. The skills.sh install keeps working. See [Install](#install-as-a-claude-code-plugin).
 - **Single-category commands save a report** -- `/codeprobe security .`, `/codeprobe tests .` and the rest now show every finding in full, with its severity rationale, and save the report to `./codeprobe-reports/`.
 - **Leaner, more faithful sub-agents** -- each reviewer now reads its own skill file directly instead of having it pasted into its prompt (where it could get condensed), so detection rules arrive intact and each agent's start-up message drops from 10 KB+ to about 2 KB.
 - **More reliable runs** -- the skill runs one simple shell command at a time; chained commands were being blocked by permission checks, which could knock a run off course and leave the report filename without its timestamp.
@@ -85,7 +85,7 @@ Every `/codeprobe audit` opens with a **health dashboard** (category scores, cod
 ## Install
 
 ```bash
-npx skills add machine-room-dev/codeprobe
+npx skills add machineroom-dev/codeprobe
 ```
 
 Then run `/codeprobe audit .` in any project.
@@ -99,11 +99,11 @@ Then run `/codeprobe audit .` in any project.
 ### Install as a Claude Code plugin
 
 ```bash
-/plugin marketplace add machine-room-dev/codeprobe
+/plugin marketplace add machineroom-dev/codeprobe
 /plugin install codeprobe@codeprobe
 ```
 
-Or from a shell: `claude plugin marketplace add machine-room-dev/codeprobe && claude plugin install codeprobe@codeprobe`.
+Or from a shell: `claude plugin marketplace add machineroom-dev/codeprobe && claude plugin install codeprobe@codeprobe`.
 
 Plugin installs invoke `/codeprobe:codeprobe audit .` (and `/codeprobe:codeprobe <command> <path>` for the rest); skills.sh installs keep `/codeprobe audit .`.
 
