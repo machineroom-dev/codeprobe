@@ -20,6 +20,7 @@
     {id}               — Finding ID (e.g., SEC-001, PERF-003)
     {severity_emoji}   — Emoji for severity level
     {problem}          — One-sentence description of the issue
+    {downgrade_note}   — Empty, or ` _(downgraded from {old_severity} by verification)_` when the verification pass downgraded the finding ({old_severity} as a label, e.g. Major)
     {suggestion}       — What to do to fix it
     {fix_prompt}       — Copy-pasteable prompt for Claude Code
 -->
@@ -35,7 +36,7 @@
 | :yellow_circle: Minor | {minor_count} |
 | :blue_circle: Suggestion | {suggestion_count} |
 | Rejected by verification | {rejected_count} |
-<!-- Append " ({n} categories unverified)" to the count when unverified_categories > 0. Omit this row when config verify is false (SKILL.md §4B reporting rule). -->
+<!-- Append " ({n} categories unverified)" to the count when unverified_categories > 0 ("category" when n = 1). Omit this row when config verify is false (SKILL.md §4B reporting rule). -->
 
 ---
 
@@ -47,7 +48,7 @@
 
 {For each finding in file:}
 
-- {severity_emoji} **{id}** (line {lines}): {problem}
+- {severity_emoji} **{id}** (line {lines}): {problem}{downgrade_note}
   > {suggestion}
   >
   > **Fix:** {fix_prompt}

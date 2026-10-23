@@ -5,15 +5,16 @@
 
   Placeholders:
     {project_name}        — Name of the project or directory being reviewed
-    {total_findings}      — Total number of findings across all categories
+    {total_findings}      — Total number of findings across all categories, after verification (rejected candidates removed)
     {categories_scanned}  — Number of categories scanned
     {severity_emoji}      — Emoji for severity level (red/orange/yellow/blue circle)
     {severity}            — Severity label (Critical, Major, Minor, Suggestion)
+    {downgrade_note}      — Empty, or ` _(downgraded from {old_severity} by verification)_` when the verification pass downgraded the finding ({old_severity} as a label, e.g. Major)
     {file}                — File path relative to project root
     {lines}               — Line range (e.g., 45-67)
     {problem}             — One-sentence description of the issue
     {fix_prompt}          — Copy-pasteable prompt for Claude Code to apply the fix
-    {score}               — Estimated overall score (0-100)
+    {score}               — Estimated overall score (0-100), from the post-verification counts (rejected candidates removed, downgraded ones at their new severity)
     {rejected_count}      — Findings rejected by the verification pass (SKILL.md §4B)
 -->
 
@@ -23,13 +24,13 @@
 
 | # | Severity | File | Issue | Fix Prompt |
 |---|----------|------|-------|------------|
-| 1 | {severity_emoji} {severity} | `{file}:{lines}` | {problem} | {fix_prompt} |
-| 2 | {severity_emoji} {severity} | `{file}:{lines}` | {problem} | {fix_prompt} |
-| 3 | {severity_emoji} {severity} | `{file}:{lines}` | {problem} | {fix_prompt} |
-| 4 | {severity_emoji} {severity} | `{file}:{lines}` | {problem} | {fix_prompt} |
-| 5 | {severity_emoji} {severity} | `{file}:{lines}` | {problem} | {fix_prompt} |
+| 1 | {severity_emoji} {severity}{downgrade_note} | `{file}:{lines}` | {problem} | {fix_prompt} |
+| 2 | {severity_emoji} {severity}{downgrade_note} | `{file}:{lines}` | {problem} | {fix_prompt} |
+| 3 | {severity_emoji} {severity}{downgrade_note} | `{file}:{lines}` | {problem} | {fix_prompt} |
+| 4 | {severity_emoji} {severity}{downgrade_note} | `{file}:{lines}` | {problem} | {fix_prompt} |
+| 5 | {severity_emoji} {severity}{downgrade_note} | `{file}:{lines}` | {problem} | {fix_prompt} |
 
-<!-- If fewer than 5 candidates survived verification, render only the survivors and add the line: Fewer than 5 findings survived verification. -->
+<!-- Render only the rows that exist. If fewer than 5 rows render and at least one candidate was rejected by verification, add the line: Fewer than 5 findings survived verification. Otherwise add no note. -->
 
 **Overall Impression:** {1-2 sentence summary of code health}
 

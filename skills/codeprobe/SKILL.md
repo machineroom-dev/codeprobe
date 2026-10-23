@@ -32,7 +32,7 @@ metadata:
 
 **THIS SKILL IS STRICTLY READ-ONLY WITH RESPECT TO THE CODEBASE BEING REVIEWED.** NEVER modify, write, edit, or delete any file in the user's source tree. NEVER run commands with side effects on the reviewed project (no `npm install`, no `pip install`, no git commits, no database mutations). If a fix is needed, generate a copy-pasteable fix prompt that the user can run separately.
 
-**One documented exception — report artifact:** after `/codeprobe audit` finishes, the orchestrator writes a single markdown report to `./codeprobe-reports/<project>-<cmd>-<timestamp>.md` in the current working directory (e.g. `./codeprobe-reports/growth-engine-audit-2026-04-23-221047.md`). This is the skill's own output, not modification of reviewed code. No other writes are permitted anywhere.
+**One documented exception — report artifact:** after `/codeprobe audit`, `/codeprobe diff`, or a single-category command (`/codeprobe security`, `solid`, …) finishes, the orchestrator writes a single markdown report to `./codeprobe-reports/<project>-<cmd>-<timestamp>.md` in the current working directory (e.g. `./codeprobe-reports/growth-engine-audit-2026-04-23-221047.md`); `/codeprobe quick` saves nothing. This is the skill's own output, not modification of reviewed code. No other writes are permitted anywhere.
 
 **Git is read-only too:** `/codeprobe diff` may run read-only git commands (`git diff`, `git merge-base`, `git ls-files`, `git rev-parse`, `git status`). It must NEVER run git commands that mutate the repository or working tree — no commit, checkout, stash, reset, fetch, or pull.
 
@@ -305,7 +305,7 @@ The verifier returns the shape defined in `verification-rubric.md` (`findings[]`
 | `downgraded` | Keep the `id`; record the original severity as `old_severity`, then set `severity` to the echoed value (it must be exactly one bucket below the original — if it is not, treat the verdict as `confirmed`); store `verification_note` on the finding. Append `{id, location, old_severity, severity, verification_note}` to `downgraded[]`. |
 | `rejected` | Remove the finding before Section 7A and before scoring. Append `{id, location, verification_note}` to `rejected[]`. |
 
-Then set `rejected_count = len(rejected[])` and `downgraded_count = len(downgraded[])`. Ignore any returned entry whose `id` was not in the input, any verdict that raises severity, and any new finding — verifiers cannot add or escalate. An input finding that receives no verdict passes through unverified and unchanged.
+Then set `rejected_count = len(rejected[])` and `downgraded_count = len(downgraded[])`. Ignore any returned entry whose `id` was not in the input, any verdict that raises severity, and any new finding — verifiers cannot add or escalate. An input finding that receives no verdict passes through unverified and unchanged, and its category counts toward `unverified_categories` (each category counts at most once, however many of its findings lack a verdict and whether or not its verifier also failed under Failure handling).
 
 ### Failure handling
 
@@ -317,7 +317,7 @@ Every surface that shows a verification count renders exactly `**Rejected by ver
 
 ### `/codeprobe quick` rendering rule
 
-After the single verifier returns: drop `rejected` candidates, apply downgrades, re-rank the survivors (severity, then category weight), and render the top 5. If fewer than 5 survived, render those that did and add the line `Fewer than 5 findings survived verification.` directly under the table. Candidates ranked 9 or lower are never verified and never rendered.
+After the single verifier returns: drop `rejected` candidates, apply downgrades, re-rank the survivors (severity, then category weight), and render the top 5. A downgraded row's Severity cell ends with ` _(downgraded from {old_severity} by verification)_` (the template's `{downgrade_note}`). If fewer than 5 rows render and at least one candidate was rejected, add the line `Fewer than 5 findings survived verification.` directly under the table; otherwise a short table gets no note. Candidates ranked 9 or lower are never verified and never rendered. `{total_findings}`, the severity totals, and the Estimated Score come from the scan-mode counts with every rejected candidate removed and every downgraded one counted at its new severity.
 
 ---
 
@@ -547,11 +547,11 @@ Status thresholds (applied to overall health and each category score):
 
 ### `/codeprobe quick` — Quick Review Summary
 
-Use the template at `templates/quick-review-summary.md` (loaded via Read). Before rendering, run the single-verifier pass described in Section 4B (`/codeprobe quick` rendering rule) on the provisional top 8; the table shows the top 5 survivors, with the one-line note when fewer than 5 survived. If the template does not exist yet, render inline:
+Use the template at `templates/quick-review-summary.md` (loaded via Read). Before rendering, run the single-verifier pass described in Section 4B (`/codeprobe quick` rendering rule) on the provisional top 8; the table shows the top 5 survivors, downgraded rows carry the downgrade note in their Severity cell, and the one-line note appears when fewer than 5 rows render because candidates were rejected. If the template does not exist yet, render inline:
 
 1. **Header**: Project name, "Quick Review — Top 5 Issues".
 2. **Top 5 Findings**: Full detail for the 5 most impactful issues, each with fix prompt.
-3. **Summary Counts**: Total issues found by severity across all categories, then `**Estimated Score:**`, then `**Rejected by verification:** {rejected_count}` (Section 4B reporting rule).
+3. **Summary Counts**: Total issues found by severity across all categories (rejected candidates removed, downgraded ones at their new severity), then `**Estimated Score:**`, then `**Rejected by verification:** {rejected_count}` (Section 4B reporting rule).
 4. **Next Step**: Suggest running `/codeprobe audit` for the complete picture.
 
 ### `/codeprobe diff` — PR-Style Review
@@ -561,7 +561,7 @@ Use the template at `templates/pr-review-comment.md` (loaded via Read). Fill `{b
 - **Terminal**: emit the filled template directly as assistant-response markdown (it is compact enough to stream whole), then the save-confirmation line (same format as Section 8B step 5).
 - **Saved file**: the same markdown, written to `./codeprobe-reports/{project}-diff-{YYYY-MM-DD-HHMMSS}.md` following the Section 8C filename and write rules.
 - The rendered markdown is deliberately paste-ready as a GitHub PR comment — keep it self-contained (no references to "the saved file" inside the body).
-- Verification (Section 4B) applies to the diff findings; `{rejected_count}` fills the "Rejected by verification" row of the summary table.
+- Verification (Section 4B) applies to the diff findings; `{rejected_count}` fills the "Rejected by verification" row of the summary table, and a downgraded finding's bullet appends ` _(downgraded from {old_severity} by verification)_` to its problem text (the template's `{downgrade_note}`).
 
 ### `/codeprobe <category>` — Single-Category Report
 
@@ -584,9 +584,10 @@ Detect whether filesystem access is available. If the user has pasted or uploade
 2. **Execute sub-skills sequentially** on the pasted code (no parallel agents).
 3. **Skip** `file_stats.py`, `dependency_mapper.py`, and all script-dependent steps (sub-skills fall back to LLM-only analysis — architecture loses deterministic cycle detection).
 4. **Skip** `/codeprobe diff`, the Codebase Stats row of the audit dashboard, and the report-save step (no filesystem write). Still render scores, hot spots, and findings to the terminal.
-5. **Inform the user**: "Running in Claude.ai mode — some features like codebase statistics, diff review, and multi-file analysis are unavailable. Analyzing the provided code directly."
-6. Still produce findings in the standard output contract format.
-7. Still compute scores based on findings from available sub-skills.
+5. **Skip** the verification pass (Section 4B) — there are no sub-agents to run verifiers — and render `**Rejected by verification:** 0 ({n} categories unverified)` per the Section 4B reporting rule, where n is the number of categories whose Critical or Major findings would have gone to a verifier (no suffix when n is 0).
+6. **Inform the user**: "Running in Claude.ai mode — some features like codebase statistics, diff review, and multi-file analysis are unavailable. Analyzing the provided code directly."
+7. Still produce findings in the standard output contract format.
+8. Still compute scores based on findings from available sub-skills.
 
 ---
 
@@ -602,7 +603,7 @@ When `/codeprobe` is invoked, execute this sequence:
 6. **Apply config overrides**: If `framework` is set in config, adjust detection. Apply `skip_categories` and `skip_rules`.
 7. **Execute sub-skills**: Prepare shared context (Section 4), then spawn all applicable sub-skill agents in parallel with the appropriate mode.
 8. **Collect findings**: Aggregate all findings in the output contract format.
-8a. **Verify findings**: run Section 4B on Critical/Major findings (one verifier per category, spawned in parallel; `quick` verifies the Critical/Major findings among its provisional top 8 with one verifier); drop rejected findings, apply downgrades, record `rejected_count`, `downgraded_count` and `unverified_categories`. Skipped when config `verify` is `false`.
+8a. **Verify findings**: run Section 4B on Critical/Major findings (one verifier per category, spawned in parallel; `quick` verifies the Critical/Major findings among its provisional top 8 with one verifier); drop rejected findings, apply downgrades, record `rejected_count`, `downgraded_count` and `unverified_categories`. Skipped when config `verify` is `false`, and in Claude.ai degraded mode (Section 9).
 9. **Deduplicate findings**: Apply the cross-category deduplication procedure (Section 7A) — route genuine conflicts to the Conflicting Recommendations section, drop true duplicates, recount severity totals per category.
 10. **Compute scores**: Calculate per-category and overall scores using the post-deduplication severity counts and the formulas in Section 7.
 11. **Render report**: Format output using the appropriate template or inline format. Use the tiered output format for `/codeprobe audit`.
