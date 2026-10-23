@@ -1,23 +1,33 @@
 name: Plugin Evals
 
-# Runs the codeprobe regression evals (`claude plugin eval`) on pull requests and
-# gates on "planted bugs still found": a suite threshold plus a hard second gate
-# that fails the job if any audit-full `critical-*` grader failed in any run.
+# Runs the codeprobe regression evals (`claude plugin eval`) on request and gates
+# on "planted bugs still found": a suite threshold plus a hard second gate that
+# fails the job if any audit-full `critical-*` grader failed in any run.
+#
+# When it runs (every run bills the eval API key):
+#   - A maintainer adds the `run-evals` label to a same-repo pull request that
+#     touches skills/, evals/ or .claude-plugin/. Pushes do not re-run it; to
+#     re-run after new commits, remove the label and add it again.
+#   - Manually, via workflow_dispatch on a branch of this repo.
 #
 # Required setup (one-time, manual):
 #   - Repo secret `CODEPROBE_EVAL_API_KEY`: an Anthropic API key used only by the
 #     eval step. An OAuth token can be substituted instead; see the Claude Code
-#     CI docs for the env var that carries it.
+#     CI docs for the env var that carries it. If the secret is not set, the job
+#     emits a warning and skips every step, so it ends green, not red.
+#   - Repo label `run-evals`.
 #
 # Cost: a full run is roughly $30 at the default per-case run counts, so the
 # ceiling below (--max-cost-usd 40) leaves headroom and aborts runaway runs.
 #
-# Fork PRs are skipped (no secrets, and --trust-plugin must not run untrusted
-# code). A maintainer runs the suite on a fork branch via workflow_dispatch
-# after reading the diff.
+# Fork PRs never run (no secrets, and --trust-plugin must not run untrusted
+# code). workflow_dispatch only targets refs in this repo, so to evaluate a fork
+# PR a maintainer reads its diff, pushes its commits to a branch in this repo,
+# and runs workflow_dispatch on that branch.
 
 on:
   pull_request:
+    types: [labeled]
     paths:
       - 'skills/**'
       - 'evals/**'
@@ -27,10 +37,13 @@ on:
 permissions:
   contents: read
 
-# A new push to the same ref supersedes the in-flight run, so superseded runs
-# do not keep billing.
+# A new eval run on the same ref cancels the in-flight one, so superseded runs
+# do not keep billing. This includes a second workflow_dispatch on the same
+# branch, and removing and re-adding `run-evals` on the same PR: either cancels
+# a paid run already in progress. Events that will not run the evals (another
+# label being added) land in a separate group and never cancel a real run.
 concurrency:
-  group: evals-${{ github.workflow }}-${{ github.ref }}
+  group: evals-${{ github.workflow }}-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' || github.event.label.name == 'run-evals' }}
   cancel-in-progress: true
 
 defaults:
@@ -39,40 +52,85 @@ defaults:
 
 jobs:
   evals:
-    if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'workflow_dispatch'
+    if: >-
+      (github.event_name == 'pull_request'
+      && github.event.pull_request.head.repo.full_name == github.repository
+      && github.event.label.name == 'run-evals')
+      || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
+      # A job-level `if:` cannot read secrets, so this step checks for the key
+      # and every later step is conditioned on its output.
+      - name: Check eval credential
+        id: secret
+        env:
+          KEY: ${{ secrets.CODEPROBE_EVAL_API_KEY }}
+        run: |
+          if [ -n "$KEY" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::CODEPROBE_EVAL_API_KEY is not set — skipping evals"
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout
+        if: steps.secret.outputs.present == 'true'
         uses: actions/checkout@v4
 
       - name: Install sandbox dependencies
+        if: steps.secret.outputs.present == 'true'
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y bubblewrap socat jq
 
+      # Free check before the paid step: Ubuntu 24.04 may restrict unprivileged
+      # user namespaces through AppArmor, which breaks the eval sandbox.
+      - name: Sandbox smoke test
+        if: steps.secret.outputs.present == 'true'
+        run: |
+          if bwrap --ro-bind / / true; then
+            echo "bwrap sandbox OK"
+            exit 0
+          fi
+          echo "bwrap failed; lifting the AppArmor unprivileged-userns restriction and retrying"
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || echo "sysctl failed"
+          if bwrap --ro-bind / / true; then
+            echo "bwrap sandbox OK after sysctl"
+            exit 0
+          fi
+          echo "::error::bubblewrap cannot create a sandbox on this runner ('bwrap --ro-bind / / true' still fails after kernel.apparmor_restrict_unprivileged_userns=0); stopping before the paid eval step"
+          exit 1
+
       - name: Install Claude Code
+        if: steps.secret.outputs.present == 'true'
         run: |
           curl -fsSL https://claude.ai/install.sh | bash
           # The installer puts the binary in ~/.local/bin; later steps need it on PATH.
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Check version sync
+        if: steps.secret.outputs.present == 'true'
         run: bash scripts/check_version_sync.sh
 
       - name: Validate plugin manifest
+        if: steps.secret.outputs.present == 'true'
         run: claude plugin validate . --strict
 
       - name: Run evals
         id: eval
+        if: steps.secret.outputs.present == 'true'
         env:
           # Eval runs call the API as this credential. An OAuth token can be
           # substituted here per the Claude Code CI docs.
           ANTHROPIC_API_KEY: ${{ secrets.CODEPROBE_EVAL_API_KEY }}
         run: |
-          # --allow-tools is variadic, so it must stay the last option.
+          # --output-dir fixes where aggregate-result.json (the file the gate
+          # reads) and report.html land. --allow-tools is variadic, so it must
+          # stay the last option.
           claude plugin eval . \
             --json results.json \
+            --output-dir evals/results/ci \
             --threshold 0.8 \
             --ablation none \
             --no-publish \
@@ -86,11 +144,12 @@ jobs:
       # Second gate on the same run (not a second run): dropping a planted
       # Critical must block regardless of the aggregate score. Runs even when
       # the eval step failed its threshold, so the log names the lost plants.
+      # Reads aggregate-result.json, the result shape verified on real runs.
       - name: Gate on planted Criticals
-        if: ${{ !cancelled() && steps.eval.conclusion != 'skipped' }}
+        if: ${{ !cancelled() && steps.secret.outputs.present == 'true' && steps.eval.conclusion != 'skipped' }}
         run: |
           set -euo pipefail
-          f=results.json
+          f=evals/results/ci/aggregate-result.json
           if [ ! -s "$f" ]; then
             echo "::error::plants-survive gate: $f is missing or empty"
             exit 1
@@ -131,9 +190,12 @@ jobs:
           echo "plants-survive gate passed: $checked critical-* grader results, all passed"
 
       - name: Upload eval report
-        if: always()
+        if: ${{ always() && steps.secret.outputs.present == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: eval-report
-          path: evals/results/**/report.html
+          path: |
+            evals/results/**/report.html
+            evals/results/ci/aggregate-result.json
+            results.json
           if-no-files-found: warn
