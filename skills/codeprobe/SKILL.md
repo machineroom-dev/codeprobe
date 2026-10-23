@@ -524,7 +524,7 @@ The terminal must never be empty or reduced to just a save confirmation. If Clau
   1. Build the full markdown using `templates/full-audit-report.md` placeholders — this includes sections that are NOT streamed to the terminal (major findings table, minor/suggestion counts, full prioritized fix order, the "Downgraded by Verification" table — omitted when `downgraded_count` is 0 — and the collapsed "Rejected by Verification" section — omitted when `rejected_count` is 0).
   2. Derive the filename as `{project}-{cmd}-{YYYY-MM-DD-HHMMSS}.md`:
      - `{project}` — resolve the target path to an absolute path (use the current working directory if the user passed no path); take its basename; if that basename points to a file, strip the extension; slugify it (lowercase; replace any run of `[^a-z0-9]+` with a single `-`; trim leading/trailing `-`); fall back to `unknown` if the slug ends up empty.
-     - `{cmd}` — the subcommand routed in Section 1 (`audit`, `quick`, `diff`, `security`, `solid`, `architecture`, `performance`, `errors`, `tests`, `smells`, `patterns`, `framework`), lowercased.
+     - `{cmd}` — the subcommand routed in Section 1 (`audit`, `diff`, `security`, `solid`, `architecture`, `performance`, `errors`, `tests`, `smells`, `patterns`, `framework`), lowercased.
      - `{YYYY-MM-DD-HHMMSS}` — current local time, obtained with one Bash call: `date +%Y-%m-%d-%H%M%S`. If Bash is unavailable or denied, use the most recent timestamp visible in any tool output, else `0000-00-00-000000`; never leave the placeholder unfilled.
   3. Ensure `./codeprobe-reports/` exists (`mkdir -p ./codeprobe-reports` via Bash if missing).
   4. Write to `./codeprobe-reports/{project}-{cmd}-{YYYY-MM-DD-HHMMSS}.md` using the `Write` tool.

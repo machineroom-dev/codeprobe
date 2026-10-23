@@ -15,9 +15,21 @@ Senior-engineer code review as an [agent skill](https://skills.sh). Run `/codepr
 
 - **9 review categories** -- security, SOLID, architecture, error handling, performance, test quality, code smells, design patterns, framework best practices
 - **Severity-scored findings** with file locations and copy-pasteable fix prompts
+- **Verified findings** -- an independent verifier re-checks every Critical and Major finding and drops false positives before scoring
 - **Auto-detects your stack** -- Python, TypeScript, React/Next.js, PHP/Laravel, SQL, and more
 - **Strictly read-only** -- never modifies your code
 - **Works with 45+ agents** -- Claude Code, Cursor, Codex, Windsurf, Cline, and more
+
+---
+
+## What's New in v2.3.0
+
+- **Verified findings.** After the category reviewers finish, an independent verifier agent re-checks every Critical and Major finding against the code and confirms it, downgrades it one severity level, or rejects it as a false positive. Rejected findings no longer count against your score; the dashboard shows how many were rejected, and the saved report lists them in a collapsed section so you can disagree. Verification adds roughly a third to an audit's cost -- set `"verify": false` in [the config](#configuration) to skip it.
+- **Install as a Claude Code plugin** -- `/plugin marketplace add nishilbhave/codeprobe`, then `/plugin install codeprobe@codeprobe`. The skills.sh install keeps working. See [Install](#install-as-a-claude-code-plugin).
+- **Single-category commands save a report** -- `/codeprobe security .`, `/codeprobe tests .` and the rest now show every finding in full, with its severity rationale, and save the report to `./codeprobe-reports/`.
+- **Leaner, more faithful sub-agents** -- each reviewer now reads its own skill file directly instead of having it pasted into its prompt (where it could get condensed), so detection rules arrive intact and each agent's start-up message drops from 10 KB+ to about 2 KB.
+- **More reliable runs** -- the skill runs one simple shell command at a time; chained commands were being blocked by permission checks, which could knock a run off course and leave the report filename without its timestamp.
+- **Regression evals** -- a planted-defect project with six must-find Critical bugs and five safe-looking "baits" that must not be flagged, runnable with `claude plugin eval`, so every change to the skill (or the model under it) is measured. See [`evals/README.md`](evals/README.md).
 
 ---
 
@@ -145,7 +157,7 @@ The `<path>` argument works the same way for every command above. It can be a di
 
 - Relative paths are resolved against the directory Claude Code was started in.
 - Only files inside the given path are analyzed — everything else is ignored.
-- The report is always saved to `./codeprobe-reports/<project>-<cmd>-<timestamp>.md` in your **current working directory**, regardless of which path you scanned. `cd` into the project first if you want the report to land there. The `<project>` segment is derived from the basename of the path you scanned (extension stripped for single-file scans), so reports from different projects in the same directory remain distinguishable.
+- Every command except `quick` (which prints to the terminal only) saves its report to `./codeprobe-reports/<project>-<cmd>-<timestamp>.md` in your **current working directory**, regardless of which path you scanned. `cd` into the project first if you want the report to land there. The `<project>` segment is derived from the basename of the path you scanned (extension stripped for single-file scans), so reports from different projects in the same directory remain distinguishable.
 
 ---
 
