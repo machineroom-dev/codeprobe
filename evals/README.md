@@ -50,13 +50,15 @@ Bash command is not listed as `not granted`; look for `permission_denied` events
 
 ## Cost
 
-Observed with the default model (full suite ≈ $29 per invocation):
+Observed with the default model on post-verification runs (2026-10-20). The full
+suite is ≈ $29 per invocation at the default run counts and ≈ $12 with `--runs 1`,
+plus a few cents of judge cost:
 
 | Case | Runs per invocation | Cost per run | Cost per invocation |
 |---|---|---|---|
-| audit-full | 2 | ≈ $5.30 | ≈ $11 |
+| audit-full | 2 | ≈ $6.90 | ≈ $13.80 |
 | quick-top5 | 3 | ≈ $3.90 | ≈ $11.70 |
-| security-only | 3 | ≈ $2.20 | ≈ $6.60 |
+| security-only | 3 | ≈ $1.23 | ≈ $3.69 |
 
 ## How the graders work
 

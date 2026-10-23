@@ -51,6 +51,8 @@ Every `/codeprobe audit` opens with a **health dashboard** (category scores, cod
 2. `api/routers/checkout.py` — 5 categories flagged (Security, SOLID, Error Handling, Performance, Test Quality)
 3. `frontend/src/pages/dashboard.tsx` — 4 categories flagged (Architecture, Code Smells, Patterns, Test Quality)
 
+**Rejected by verification:** 2
+
 **Executive Summary:** Systemic issues across four categories. The biggest blocker is **error handling (38)** — 14 swallowed exceptions in payment paths, no top-level `try/except` in any of the three async workers, and transaction boundaries leak across service calls. **SOLID (45)** is dominated by `OrderProcessor` as a 1,420-LOC god class handling pricing, inventory, fulfillment, and notifications. **Architecture (55)** has a bidirectional dependency between `services/` and `api/` that makes the checkout path near-impossible to test in isolation. Security (72) is mostly sound but string-concatenation SQL in `reports/query_builder.py:88` needs to be fixed before the next release.
 
 **Critical (P0 — 2 findings):**
@@ -84,7 +86,7 @@ Then run `/codeprobe audit .` in any project.
 
 ### Install as a Claude Code plugin
 
-```
+```bash
 /plugin marketplace add nishilbhave/codeprobe
 /plugin install codeprobe@codeprobe
 ```
@@ -92,6 +94,8 @@ Then run `/codeprobe audit .` in any project.
 Or from a shell: `claude plugin marketplace add nishilbhave/codeprobe && claude plugin install codeprobe@codeprobe`.
 
 Plugin installs invoke `/codeprobe:codeprobe audit .` (and `/codeprobe:codeprobe <command> <path>` for the rest); skills.sh installs keep `/codeprobe audit .`.
+
+A plugin install copies the whole repository into Claude Code's plugin cache, including `evals/`, whose planted-defect fixture holds deliberately fake credentials (such as a `sk-live-`-style key) that secret scanners may flag.
 
 ---
 
@@ -165,8 +169,8 @@ The system uses an **orchestrator + sub-skill** architecture:
    - `file_stats.py` -- LOC, file counts, method counts per file
    - `complexity_scorer.py` -- Cyclomatic complexity per function
    - `dependency_mapper.py` -- Import graph and circular dependency detection
-5. **Verification** -- After the sub-skills return, an independent verifier agent re-checks every Critical and Major finding against the code and either confirms it, downgrades it by one severity bucket, or rejects it; Minor and Suggestion findings are not verified. Rejected findings are removed before deduplication and scoring, counted on the dashboard's `Rejected by verification` line, and listed in a collapsed "Rejected by verification" section of the saved report so you can disagree. Set `"verify": false` in the config to skip the pass.
-6. **Regression evals** (`evals/`) -- A planted-defect fixture project plus expected findings (`evals/expected-findings.md`), run as `claude plugin eval` cases for checking severity stability, dedup, scoring, and verification whenever the skill or the underlying model changes. A full run costs roughly $29 (see `evals/README.md`):
+5. **Verification** -- After the sub-skills return, an independent verifier agent re-checks every Critical and Major finding against the code (`quick` verifies the Critical and Major findings among its top 8 candidates) and either confirms it, downgrades it by one severity bucket, or rejects it; Minor and Suggestion findings are not verified. Rejected findings are removed before deduplication and scoring and counted on the `Rejected by verification` line; the saved reports of `audit` and single-category commands also list them in a collapsed "Rejected by Verification" section so you can disagree. Set `"verify": false` in the config to skip the pass.
+6. **Regression evals** (`evals/`) -- A planted-defect fixture project plus expected findings (`evals/expected-findings.md`), run as `claude plugin eval` cases for checking severity stability, dedup, scoring, and verification whenever the skill or the underlying model changes. Run it from the repo root; the cost table is in `evals/README.md`:
 
    ```bash
    claude plugin eval . --ablation none --scaffold --trust-plugin --no-publish \

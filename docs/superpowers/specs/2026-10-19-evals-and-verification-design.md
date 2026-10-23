@@ -296,3 +296,17 @@ Output: the same findings list with two new fields per finding, `verification: c
 3. Full run at default runs: every case ≥ 0.8, and every `critical-<n>` grader in `audit-full` passes in every run (the plants-survive gate, enforced separately from the threshold).
 4. Manual: `/codeprobe audit evals/fixture` in a normal session shows the new dashboard line and the collapsed rejected section in the saved report.
 5. `npx skills add nishilbhave/codeprobe` from a clean machine still installs ten skills and `/codeprobe audit .` works.
+
+---
+
+## Implementation deviations (v2.3.0)
+
+Where the shipped release differs from the design above; the body is left as approved.
+
+- `skill-fired` is `tool_used: Agent` with `input_match` on the `=== SUB-SKILL: codeprobe-<name> ===` marker, not `tool_used: Skill`: the `/codeprobe:codeprobe` slash command expands inline, so no Skill call reaches the trace.
+- The baits live in `evals/fixture/fulfillment.py` (not `safe.py`) with no BAIT comments, so nothing in the fixture tells the auditor which code is safe; the rationale is in `evals/expected-findings.md`.
+- Sub-skill agents and verifiers receive their SKILL.md and `verification-rubric.md` by absolute path and read them themselves; content is inlined only on the single re-spawn after a `SUB-SKILL UNREADABLE` / `RUBRIC UNREADABLE` reply.
+- The bait graders are scoped by category and location (the bait's category ID and a `fulfillment.py` location, in the severity sections its "Must not appear as" column forbids), so a finding elsewhere that only cites a bait does not count.
+- CI runs only when a maintainer adds the `run-evals` label to a same-repo PR, or via `workflow_dispatch`, with `--max-cost-usd 40`; a missing `CODEPROBE_EVAL_API_KEY` skips the job with a warning instead of failing it. `workflow_dispatch` cannot target a fork's ref, so a fork PR is evaluated by pushing its reviewed commits to a branch in this repo and dispatching there. The plants-survive gate reads `evals/results/ci/aggregate-result.json` (written via `--output-dir`); `--json results.json` is still produced.
+- Plant #16 (`merge_duplicate_accounts`) was strengthened with a non-idempotent credit transfer after a verifier correctly downgraded the original, and baits B1/B2 were tightened so only the planted reason remains.
+- Graders beyond the §4.2 table: `verifier-fired` in all three cases, and in `audit-full` the informational (weight 0.25) recall graders `cycle-is-major` (#9) and `no-assert-is-major` (#22).
